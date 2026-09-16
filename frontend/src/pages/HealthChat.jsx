@@ -1,11 +1,13 @@
 import { useState, useEffect, useRef } from 'react'
-import { Send, MessageSquare, Bot, User } from 'lucide-react'
+import { Send, MessageSquare, Bot, User, Trash2 } from 'lucide-react'
 import api from '../utils/api'
 
 const HealthChat = () => {
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
+  const [loadingHistory, setLoadingHistory] = useState(true)
+  const [clearing, setClearing] = useState(false)
   const messagesEndRef = useRef(null)
 
   const scrollToBottom = () => {
@@ -15,6 +17,55 @@ const HealthChat = () => {
   useEffect(() => {
     scrollToBottom()
   }, [messages])
+
+  useEffect(() => {
+    loadChatHistory()
+  }, [])
+
+  const loadChatHistory = async () => {
+    setLoadingHistory(true)
+    try {
+      const response = await api.get('/chat/history')
+      const history = response.data.history || []
+      
+      // Convert history to messages format
+      const loadedMessages = []
+      for (const entry of history.reverse()) {
+        loadedMessages.push({
+          role: 'user',
+          content: entry.question
+        })
+        loadedMessages.push({
+          role: 'assistant',
+          content: entry.answer,
+          sources: entry.source_documents
+        })
+      }
+      
+      setMessages(loadedMessages)
+    } catch (error) {
+      console.error('Failed to load chat history:', error)
+    } finally {
+      setLoadingHistory(false)
+    }
+  }
+
+  const handleClearHistory = async () => {
+    if (!window.confirm('Are you sure you want to clear all chat history? This cannot be undone.')) {
+      return
+    }
+
+    setClearing(true)
+    try {
+      await api.delete('/chat/history')
+      setMessages([])
+    } catch (error) {
+      console.error('Failed to clear history:', error)
+      alert('Failed to clear chat history: ' + (error.response?.data?.detail || error.message))
+    } finally {
+      setClearing(false)
+    }
+  }
 
   const handleSend = async () => {
     if (!input.trim()) return
@@ -36,7 +87,8 @@ const HealthChat = () => {
       console.error('Chat failed:', error)
       const errorMessage = { 
         role: 'assistant', 
-        content: 'Sorry, I encountered an error. Please try again.' 
+        content: 'Sorry, I encountered an error. Please try again.' + 
+                  (error.response?.data?.detail ? `: ${error.response.data.detail}` : '')
       }
       setMessages(prev => [...prev, errorMessage])
     } finally {
@@ -51,11 +103,31 @@ const HealthChat = () => {
     }
   }
 
+  if (loadingHistory) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">Health Chat</h1>
-        <p className="mt-2 text-gray-600">Ask health questions to our AI assistant</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Health Chat</h1>
+          <p className="mt-2 text-gray-600">Ask health questions to our AI assistant</p>
+        </div>
+        {messages.length > 0 && (
+          <button
+            onClick={handleClearHistory}
+            disabled={clearing}
+            className="btn-secondary flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Trash2 className="h-4 w-4" />
+            <span>{clearing ? 'Clearing...' : 'Clear History'}</span>
+          </button>
+        )}
       </div>
 
       <div className="card h-[600px] flex flex-col">
@@ -122,7 +194,7 @@ const HealthChat = () => {
                         : 'bg-gray-100 text-gray-900'
                     }`}
                   >
-                    <p className="text-sm">{msg.content}</p>
+                    <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
                     {msg.sources && msg.sources.length > 0 && (
                       <div className="mt-2 pt-2 border-t border-gray-200">
                         <p className="text-xs text-gray-500">Sources: {msg.sources.length}</p>
@@ -141,9 +213,18 @@ const HealthChat = () => {
                 </div>
                 <div className="p-3 rounded-lg bg-gray-100">
                   <div className="flex space-x-1">
-                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-100"></div>
-                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-200"></div>
+                    <div 
+                      className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                      style={{ animationDelay: '0ms' }}
+                    ></div>
+                    <div 
+                      className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                      style={{ animationDelay: '150ms' }}
+                    ></div>
+                    <div 
+                      className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                      style={{ animationDelay: '300ms' }}
+                    ></div>
                   </div>
                 </div>
               </div>

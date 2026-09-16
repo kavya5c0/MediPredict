@@ -7,12 +7,21 @@ from app.core.security import (
 from app.core.database import users_collection
 from app.core.config import settings
 from bson import ObjectId
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
 @router.post("/register")
 async def register(user_data: dict):
     """Register a new user"""
+    if users_collection is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database not available. Please ensure MongoDB is running."
+        )
+    
     # Check if user exists
     existing_user = await users_collection.find_one({"email": user_data["email"]})
     if existing_user:
@@ -40,6 +49,12 @@ async def register(user_data: dict):
 @router.post("/login")
 async def login(form_data: OAuth2PasswordRequestForm = Depends()):
     """Login user and return access token"""
+    if users_collection is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database not available. Please ensure MongoDB is running."
+        )
+    
     user = await users_collection.find_one({"email": form_data.username})
     
     if not user or not verify_password(form_data.password, user["password"]):
@@ -63,6 +78,12 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
 @router.get("/me")
 async def get_me(current_user: str = Depends(get_current_user)):
     """Get current user information"""
+    if users_collection is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database not available. Please ensure MongoDB is running."
+        )
+    
     user = await users_collection.find_one({"_id": ObjectId(current_user)})
     if not user:
         raise HTTPException(status_code=404, detail="User not found")

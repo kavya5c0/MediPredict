@@ -43,7 +43,7 @@ const DiseasePrediction = () => {
       setPrediction(response.data)
     } catch (error) {
       console.error('Prediction failed:', error)
-      alert('Failed to get prediction')
+      alert('Failed to get prediction: ' + (error.response?.data?.detail || error.message))
     } finally {
       setLoading(false)
     }

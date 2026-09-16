@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Upload, FileText, Calendar, AlertCircle } from 'lucide-react'
+import { Upload, FileText, Calendar, AlertCircle, X, FileSearch } from 'lucide-react'
 import api from '../utils/api'
 
 const MedicalReports = () => {
@@ -8,6 +8,10 @@ const MedicalReports = () => {
   const [uploading, setUploading] = useState(false)
   const [selectedFile, setSelectedFile] = useState(null)
   const [analysisResult, setAnalysisResult] = useState(null)
+  const [showTextAnalysis, setShowTextAnalysis] = useState(false)
+  const [analysisText, setAnalysisText] = useState('')
+  const [analyzingText, setAnalyzingText] = useState(false)
+  const [error, setError] = useState(null)
 
   useEffect(() => {
     fetchReports()
@@ -26,12 +30,14 @@ const MedicalReports = () => {
 
   const handleFileSelect = (e) => {
     setSelectedFile(e.target.files[0])
+    setError(null)
   }
 
   const handleUpload = async () => {
     if (!selectedFile) return
 
     setUploading(true)
+    setError(null)
     const formData = new FormData()
     formData.append('file', selectedFile)
 
@@ -44,22 +50,32 @@ const MedicalReports = () => {
       setSelectedFile(null)
     } catch (error) {
       console.error('Upload failed:', error)
-      alert('Failed to upload and analyze report')
+      setError('Failed to upload and analyze report: ' + (error.response?.data?.detail || error.message))
     } finally {
       setUploading(false)
     }
   }
 
   const handleTextAnalysis = async () => {
-    const text = prompt('Enter medical report text:')
-    if (!text) return
+    if (!analysisText.trim()) {
+      setError('Please enter medical report text to analyze')
+      return
+    }
+
+    setAnalyzingText(true)
+    setError(null)
 
     try {
-      const response = await api.post('/medical/analyze/text', { text })
+      const response = await api.post('/medical/analyze/text', { text: analysisText })
       setAnalysisResult(response.data.analysis)
       fetchReports()
+      setAnalysisText('')
+      setShowTextAnalysis(false)
     } catch (error) {
       console.error('Analysis failed:', error)
+      setError('Failed to analyze text: ' + (error.response?.data?.detail || error.message))
+    } finally {
+      setAnalyzingText(false)
     }
   }
 
@@ -77,6 +93,22 @@ const MedicalReports = () => {
         <h1 className="text-3xl font-bold text-gray-900">Medical Reports</h1>
         <p className="mt-2 text-gray-600">Upload and analyze your medical documents</p>
       </div>
+
+      {/* Error Message */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start space-x-3">
+          <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <p className="text-sm text-red-800">{error}</p>
+          </div>
+          <button 
+            onClick={() => setError(null)}
+            className="text-red-600 hover:text-red-800"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+      )}
 
       {/* Upload Section */}
       <div className="card">
@@ -117,19 +149,72 @@ const MedicalReports = () => {
               {uploading ? 'Analyzing...' : 'Upload & Analyze'}
             </button>
             <button
-              onClick={handleTextAnalysis}
-              className="btn-secondary"
+              onClick={() => setShowTextAnalysis(!showTextAnalysis)}
+              className="btn-secondary flex items-center space-x-2"
             >
-              Analyze Text
+              <FileSearch className="h-4 w-4" />
+              <span>{showTextAnalysis ? 'Hide' : 'Analyze'} Text</span>
             </button>
           </div>
         </div>
       </div>
 
+      {/* Text Analysis Form */}
+      {showTextAnalysis && (
+        <div className="card bg-gray-50">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Analyze Medical Text</h2>
+          <div className="space-y-4">
+            <div>
+              <label htmlFor="analysis-text" className="block text-sm font-medium text-gray-700 mb-2">
+                Enter medical report text
+              </label>
+              <textarea
+                id="analysis-text"
+                value={analysisText}
+                onChange={(e) => setAnalysisText(e.target.value)}
+                placeholder="Paste your medical report text here..."
+                rows={8}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 resize-none"
+              />
+              <p className="mt-1 text-xs text-gray-500">
+                {analysisText.length} characters
+              </p>
+            </div>
+            <div className="flex space-x-3">
+              <button
+                onClick={handleTextAnalysis}
+                disabled={!analysisText.trim() || analyzingText}
+                className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {analyzingText ? 'Analyzing...' : 'Analyze Text'}
+              </button>
+              <button
+                onClick={() => {
+                  setShowTextAnalysis(false)
+                  setAnalysisText('')
+                  setError(null)
+                }}
+                className="btn-secondary"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Analysis Result */}
       {analysisResult && (
         <div className="card bg-gradient-to-r from-primary-50 to-medical-50">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Analysis Result</h2>
+          <div className="flex items-start justify-between mb-4">
+            <h2 className="text-lg font-semibold text-gray-900">Analysis Result</h2>
+            <button 
+              onClick={() => setAnalysisResult(null)}
+              className="text-gray-500 hover:text-gray-700"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
           <div className="space-y-4">
             <div>
               <h3 className="font-medium text-gray-700 mb-2">Summary</h3>

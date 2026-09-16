@@ -25,16 +25,18 @@ const Dashboard = () => {
 
   const fetchDashboardData = async () => {
     try {
-      const [reportsRes, predictionsRes] = await Promise.all([
-        api.get('/medical/reports'),
-        api.get('/predict/history')
+      const [reportsRes, predictionsRes, chatRes, recommendationsRes] = await Promise.all([
+        api.get('/medical/reports').catch(() => ({ data: { reports: [] } })),
+        api.get('/predict/history').catch(() => ({ data: { predictions: [] } })),
+        api.get('/chat/history').catch(() => ({ data: { history: [] } })),
+        api.get('/recommendations').catch(() => ({ data: { recommendations: [] } }))
       ])
 
       setStats({
         reports: reportsRes.data.reports?.length || 0,
         predictions: predictionsRes.data.predictions?.length || 0,
-        chatMessages: 0,
-        recommendations: 0
+        chatMessages: chatRes.data.history?.length || 0,
+        recommendations: recommendationsRes.data.recommendations?.length || 0
       })
     } catch (error) {
       console.error('Failed to fetch dashboard data:', error)

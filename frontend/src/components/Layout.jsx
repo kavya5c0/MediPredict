@@ -22,6 +22,15 @@ const Layout = () => {
     { path: '/recommendations', icon: Lightbulb, label: 'Recommendations' },
   ]
 
+  // Get display name from user data
+  const getDisplayName = () => {
+    if (!user) return 'User'
+    if (user.full_name) return user.full_name
+    if (user.name) return user.name
+    if (user.email) return user.email.split('@')[0]
+    return 'User'
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <nav className="bg-white shadow-sm border-b border-gray-200">
@@ -30,7 +39,7 @@ const Layout = () => {
             <div className="flex">
               <div className="flex-shrink-0 flex items-center">
                 <HeartPulse className="h-8 w-8 text-primary-600" />
-                <span className="ml-2 text-xl font-bold text-gray-900">HealthAI</span>
+                <span className="ml-2 text-xl font-bold text-gray-900">MediPredict</span>
               </div>
               <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
                 {navItems.map((item) => {
@@ -56,7 +65,7 @@ const Layout = () => {
             <div className="flex items-center space-x-4">
               <div className="flex items-center text-sm text-gray-700">
                 <User className="h-4 w-4 mr-2" />
-                <span>Welcome</span>
+                <span>Welcome, {getDisplayName()}</span>
               </div>
               <button
                 onClick={logout}

@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react'
-import axios from 'axios'
+import api from '../utils/api'
 
 const AuthContext = createContext(null)
 
@@ -18,9 +18,7 @@ export const AuthProvider = ({ children }) => {
 
   const fetchUser = async () => {
     try {
-      const response = await axios.get('/api/auth/me', {
-        headers: { Authorization: `Bearer ${token}` }
-      })
+      const response = await api.get('/auth/me')
       setUser(response.data)
     } catch (error) {
       console.error('Failed to fetch user:', error)
@@ -36,18 +34,29 @@ export const AuthProvider = ({ children }) => {
     formData.append('username', email)
     formData.append('password', password)
 
-    const response = await axios.post('/api/auth/login', formData)
-    const { access_token, user_id } = response.data
+    const response = await api.post('/auth/login', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
+    const { access_token } = response.data
     
     localStorage.setItem('token', access_token)
     setToken(access_token)
-    setUser({ _id: user_id })
+    
+    // Fetch full user profile after login
+    try {
+      const userResponse = await api.get('/auth/me')
+      setUser(userResponse.data)
+    } catch (error) {
+      console.error('Failed to fetch user profile:', error)
+      // Fallback to basic user info
+      setUser({ _id: response.data.user_id })
+    }
     
     return response.data
   }
 
   const register = async (userData) => {
-    const response = await axios.post('/api/auth/register', userData)
+    const response = await api.post('/auth/register', userData)
     return response.data
   }
 

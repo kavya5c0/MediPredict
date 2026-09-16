@@ -4,35 +4,60 @@ import numpy as np
 from PIL import Image
 from typing import Dict, List
 import re
-from transformers import pipeline
-import spacy
+
+try:
+    from transformers import pipeline
+    TRANSFORMERS_AVAILABLE = True
+except ImportError:
+    TRANSFORMERS_AVAILABLE = False
+    print("Transformers not available, using basic analysis")
+
+try:
+    import spacy
+    SPACY_AVAILABLE = True
+    try:
+        NLP = spacy.load("en_core_web_sm")
+    except:
+        SPACY_AVAILABLE = False
+        print("spaCy model not available")
+except ImportError:
+    SPACY_AVAILABLE = False
+    print("spaCy not available, using basic analysis")
 
 class MedicalReportAnalyzer:
     def __init__(self):
-        self.nlp = spacy.load("en_core_web_sm")
-        self.medical_ner = pipeline(
-            "ner",
-            model="samrawat/bert-base-uncased-medical-ner",
-            aggregation_strategy="simple"
-        )
+        self.nlp = NLP if SPACY_AVAILABLE else None
+        self.medical_ner = None
+        
+        if TRANSFORMERS_AVAILABLE:
+            try:
+                self.medical_ner = pipeline(
+                    "ner",
+                    model="samrawat/bert-base-uncased-medical-ner",
+                    aggregation_strategy="simple"
+                )
+            except Exception as e:
+                print(f"Failed to load medical NER model: {e}")
         
     def extract_text_from_image(self, image_path: str) -> str:
         """Extract text from medical report image using OCR"""
-        image = cv2.imread(image_path)
-        
-        # Preprocessing
-        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        gray = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]
-        gray = cv2.medianBlur(gray, 3)
-        
-        # OCR
-        text = pytesseract.image_to_string(gray)
-        return text
+        try:
+            image = cv2.imread(image_path)
+            
+            # Preprocessing
+            gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+            gray = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]
+            gray = cv2.medianBlur(gray, 3)
+            
+            # OCR
+            text = pytesseract.image_to_string(gray)
+            return text
+        except Exception as e:
+            print(f"OCR failed: {e}")
+            return ""
     
     def extract_medical_entities(self, text: str) -> Dict:
         """Extract medical entities from text using NER"""
-        entities = self.medical_ner(text)
-        
         medical_info = {
             "diseases": [],
             "medications": [],
@@ -41,16 +66,29 @@ class MedicalReportAnalyzer:
             "vitals": []
         }
         
-        for entity in entities:
-            label = entity['entity_group']
-            word = entity['word']
-            
-            if label in ['DISEASE', 'CONDITION']:
-                medical_info["diseases"].append(word)
-            elif label in ['MEDICATION', 'DRUG']:
-                medical_info["medications"].append(word)
-            elif label in ['SYMPTOM']:
-                medical_info["symptoms"].append(word)
+        if self.medical_ner:
+            try:
+                entities = self.medical_ner(text)
+                
+                for entity in entities:
+                    label = entity['entity_group']
+                    word = entity['word']
+                    
+                    if label in ['DISEASE', 'CONDITION']:
+                        medical_info["diseases"].append(word)
+                    elif label in ['MEDICATION', 'DRUG']:
+                        medical_info["medications"].append(word)
+                    elif label in ['SYMPTOM']:
+                        medical_info["symptoms"].append(word)
+            except Exception as e:
+                print(f"NER extraction failed: {e}")
+        else:
+            # Fallback: basic keyword matching
+            text_lower = text.lower()
+            common_diseases = ['diabetes', 'hypertension', 'asthma', 'arthritis', 'cancer', 'heart disease', 'copd']
+            for disease in common_diseases:
+                if disease in text_lower:
+                    medical_info["diseases"].append(disease.title())
         
         # Extract lab values using regex
         lab_pattern = r'(\w+)\s*[:=]\s*(\d+\.?\d*)\s*(\w*/?\w*)'
@@ -93,12 +131,17 @@ class MedicalReportAnalyzer:
         medical_entities = self.extract_medical_entities(text)
         
         # Sentiment analysis for report tone
-        doc = self.nlp(text)
         sentiment = "neutral"
-        if any(token.sentiment > 0 for token in doc):
-            sentiment = "positive"
-        elif any(token.sentiment < 0 for token in doc):
-            sentiment = "negative"
+        if self.nlp:
+            try:
+                doc = self.nlp(text)
+                if hasattr(doc, '_.sentiment'):
+                    if doc._.sentiment > 0:
+                        sentiment = "positive"
+                    elif doc._.sentiment < 0:
+                        sentiment = "negative"
+            except Exception as e:
+                print(f"Sentiment analysis failed: {e}")
         
         # Summary generation
         summary = self._generate_summary(medical_entities)
