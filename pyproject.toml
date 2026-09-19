@@ -3,4 +3,4 @@ name = "medipredict"
 version = "1.0.0"
 
 [tool.vercel]
-entrypoint = "backend.app.main:app"
+entrypoint = "api.index:asgi_app"
