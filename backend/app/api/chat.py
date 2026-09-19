@@ -81,7 +81,7 @@ async def get_chat_history(
     limit: int = 20
 ):
     """Get chat history for user"""
-    if not chat_history_collection:
+    if chat_history_collection is None:
         return {"history": []}
     
     try:
@@ -100,12 +100,37 @@ async def get_chat_history(
         logger.error(f"Error fetching chat history: {e}")
         return {"history": []}
 
+@router.post("/history")
+async def add_to_chat_history(
+    chat_data: dict,
+    current_user: str = Depends(get_current_user)
+):
+    """Add entry to chat history"""
+    if chat_history_collection is None:
+        return {"message": "Database not available", "history": []}
+    
+    try:
+        chat_entry = {
+            "user_id": current_user,
+            "question": chat_data.get("question", ""),
+            "answer": chat_data.get("answer", ""),
+            "source_documents": chat_data.get("source_documents", []),
+            "timestamp": datetime.utcnow()
+        }
+        
+        await chat_history_collection.insert_one(chat_entry)
+        
+        return {"message": "Chat history saved"}
+    except Exception as e:
+        logger.error(f"Error saving chat history: {e}")
+        return {"message": "Failed to save chat history"}
+
 @router.delete("/history")
 async def clear_chat_history(
     current_user: str = Depends(get_current_user)
 ):
     """Clear chat history for user"""
-    if not chat_history_collection:
+    if chat_history_collection is None:
         return {"message": "Database not available", "deleted": 0}
     
     try:

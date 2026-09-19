@@ -16,7 +16,7 @@ async def get_recommendations(
 ):
     """Get personalized health recommendations"""
     # Get user profile
-    if not users_collection:
+    if users_collection is None:
         # Return general recommendations if database is not available
         recommendations = recommendation_engine.get_personalized_recommendations(current_user)
         return {
@@ -65,7 +65,7 @@ async def update_health_profile(
     current_user: str = Depends(get_current_user)
 ):
     """Update user health profile for recommendations"""
-    if not users_collection:
+    if users_collection is None:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Database not available. Please ensure MongoDB is running."

@@ -1,73 +1,76 @@
 import { createContext, useContext, useState, useEffect } from 'react'
 import api from '../utils/api'
+import toast from 'react-hot-toast'
 
 const AuthContext = createContext(null)
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [token, setToken] = useState(localStorage.getItem('token'))
 
   useEffect(() => {
-    if (token) {
-      fetchUser()
-    } else {
-      setLoading(false)
+    // Check if user is logged in on mount
+    const token = localStorage.getItem('token')
+    const savedUser = localStorage.getItem('user')
+    
+    if (token && savedUser) {
+      try {
+        setUser(JSON.parse(savedUser))
+      } catch (e) {
+        localStorage.removeItem('token')
+        localStorage.removeItem('user')
+      }
     }
-  }, [token])
-
-  const fetchUser = async () => {
-    try {
-      const response = await api.get('/auth/me')
-      setUser(response.data)
-    } catch (error) {
-      console.error('Failed to fetch user:', error)
-      localStorage.removeItem('token')
-      setToken(null)
-    } finally {
-      setLoading(false)
-    }
-  }
+    
+    setLoading(false)
+  }, [])
 
   const login = async (email, password) => {
-    const formData = new FormData()
-    formData.append('username', email)
-    formData.append('password', password)
-
-    const response = await api.post('/auth/login', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
-    })
-    const { access_token } = response.data
-    
-    localStorage.setItem('token', access_token)
-    setToken(access_token)
-    
-    // Fetch full user profile after login
     try {
-      const userResponse = await api.get('/auth/me')
-      setUser(userResponse.data)
+      const formData = new FormData()
+      formData.append('username', email)
+      formData.append('password', password)
+
+      const response = await api.post('/auth/login', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      })
+      
+      const { access_token, user_id } = response.data
+      
+      // Store token and user info
+      localStorage.setItem('token', access_token)
+      const userData = { email, _id: user_id || 'user' }
+      localStorage.setItem('user', JSON.stringify(userData))
+      setUser(userData)
+      
+      toast.success('Login successful!')
+      return response.data
     } catch (error) {
-      console.error('Failed to fetch user profile:', error)
-      // Fallback to basic user info
-      setUser({ _id: response.data.user_id })
+      // API interceptor handles error toast
+      throw error
     }
-    
-    return response.data
   }
 
   const register = async (userData) => {
-    const response = await api.post('/auth/register', userData)
-    return response.data
+    try {
+      const response = await api.post('/auth/register', userData)
+      toast.success('Registration successful! Please login.')
+      return response.data
+    } catch (error) {
+      // API interceptor handles error toast
+      throw error
+    }
   }
 
   const logout = () => {
     localStorage.removeItem('token')
-    setToken(null)
+    localStorage.removeItem('user')
     setUser(null)
+    toast.success('Logged out successfully')
   }
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, register, logout }}>
       {children}
     </AuthContext.Provider>
   )

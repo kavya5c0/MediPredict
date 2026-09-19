@@ -226,7 +226,7 @@ async def get_prediction_history(
     current_user: str = Depends(get_current_user)
 ):
     """Get prediction history for user"""
-    if not predictions_collection:
+    if predictions_collection is None:
         return {"predictions": []}
     
     try:

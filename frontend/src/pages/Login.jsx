@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { HeartPulse } from 'lucide-react'
+import LoadingSpinner from '../components/LoadingSpinner'
 
 const Login = () => {
   const [email, setEmail] = useState('')
@@ -56,6 +57,7 @@ const Login = () => {
                 className="input-field"
                 placeholder="you@example.com"
                 required
+                disabled={loading}
               />
             </div>
 
@@ -68,17 +70,18 @@ const Login = () => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="input-field"
-                placeholder="••••••••"
+                placeholder="•••••••••"
                 required
+                disabled={loading}
               />
             </div>
 
             <button
               type="submit"
               disabled={loading}
-              className="w-full btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full btn-primary flex items-center justify-center"
             >
-              {loading ? 'Signing in...' : 'Sign In'}
+              {loading ? <LoadingSpinner size="sm" text="" /> : 'Sign In'}
             </button>
           </form>
 

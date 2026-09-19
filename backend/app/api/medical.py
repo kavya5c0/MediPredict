@@ -31,7 +31,7 @@ async def upload_medical_report(
     current_user: str = Depends(get_current_user)
 ):
     """Upload and analyze medical report"""
-    if not medical_reports_collection:
+    if medical_reports_collection is None:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Database not available. Please ensure MongoDB is running."
@@ -115,7 +115,7 @@ async def analyze_medical_text(
     current_user: str = Depends(get_current_user)
 ):
     """Analyze medical text directly"""
-    if not medical_reports_collection:
+    if medical_reports_collection is None:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Database not available. Please ensure MongoDB is running."
@@ -151,7 +151,7 @@ async def get_medical_reports(
     current_user: str = Depends(get_current_user)
 ):
     """Get all medical reports for user"""
-    if not medical_reports_collection:
+    if medical_reports_collection is None:
         return {"reports": []}
     
     reports = await medical_reports_collection.find(
@@ -169,7 +169,7 @@ async def get_medical_report(
     current_user: str = Depends(get_current_user)
 ):
     """Get specific medical report"""
-    if not medical_reports_collection:
+    if medical_reports_collection is None:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Database not available. Please ensure MongoDB is running."

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Send, MessageSquare, Bot, User, Trash2 } from 'lucide-react'
 import api from '../utils/api'
+import LoadingSpinner from '../components/LoadingSpinner'
 
 const HealthChat = () => {
   const [messages, setMessages] = useState([])
@@ -104,11 +105,7 @@ const HealthChat = () => {
   }
 
   if (loadingHistory) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
-      </div>
-    )
+    return <LoadingSpinner size="lg" text="Loading chat history..." fullScreen={false} />
   }
 
   return (
@@ -212,20 +209,7 @@ const HealthChat = () => {
                   <Bot className="h-5 w-5 text-green-600" />
                 </div>
                 <div className="p-3 rounded-lg bg-gray-100">
-                  <div className="flex space-x-1">
-                    <div 
-                      className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
-                      style={{ animationDelay: '0ms' }}
-                    ></div>
-                    <div 
-                      className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
-                      style={{ animationDelay: '150ms' }}
-                    ></div>
-                    <div 
-                      className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
-                      style={{ animationDelay: '300ms' }}
-                    ></div>
-                  </div>
+                  <LoadingSpinner size="sm" text="" />
                 </div>
               </div>
             </div>

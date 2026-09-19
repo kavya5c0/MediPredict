@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { HeartPulse } from 'lucide-react'
+import LoadingSpinner from '../components/LoadingSpinner'
 
 const Register = () => {
   const [formData, setFormData] = useState({
@@ -56,7 +57,7 @@ const Register = () => {
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Full Name
@@ -69,6 +70,7 @@ const Register = () => {
                 className="input-field"
                 placeholder="John Doe"
                 required
+                disabled={loading}
               />
             </div>
 
@@ -84,6 +86,23 @@ const Register = () => {
                 className="input-field"
                 placeholder="you@example.com"
                 required
+                disabled={loading}
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Password
+              </label>
+              <input
+                type="password"
+                name="password"
+                value={formData.password}
+                onChange={handleChange}
+                className="input-field"
+                placeholder="•••••••••"
+                required
+                disabled={loading}
               />
             </div>
 
@@ -100,9 +119,9 @@ const Register = () => {
                   className="input-field"
                   placeholder="25"
                   required
+                  disabled={loading}
                 />
               </div>
-
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Gender
@@ -113,6 +132,7 @@ const Register = () => {
                   onChange={handleChange}
                   className="input-field"
                   required
+                  disabled={loading}
                 >
                   <option value="">Select</option>
                   <option value="male">Male</option>
@@ -122,27 +142,12 @@ const Register = () => {
               </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Password
-              </label>
-              <input
-                type="password"
-                name="password"
-                value={formData.password}
-                onChange={handleChange}
-                className="input-field"
-                placeholder="••••••••"
-                required
-              />
-            </div>
-
             <button
               type="submit"
               disabled={loading}
-              className="w-full btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full btn-primary flex items-center justify-center"
             >
-              {loading ? 'Creating account...' : 'Sign Up'}
+              {loading ? <LoadingSpinner size="sm" text="" /> : 'Sign Up'}
             </button>
           </form>
 

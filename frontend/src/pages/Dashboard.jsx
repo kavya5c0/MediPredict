@@ -5,9 +5,19 @@ import {
   FileText, 
   MessageSquare, 
   Lightbulb,
-  AlertCircle
+  AlertCircle,
+  TrendingUp,
+  Activity,
+  Shield
 } from 'lucide-react'
-import api from '../utils/api'
+import api, { quietApi } from '../utils/api'
+import StatCard from '../components/StatCard'
+import HealthOverviewChart from '../components/charts/HealthOverviewChart'
+import HealthTrendChart from '../components/charts/HealthTrendChart'
+import DiseaseRiskChart from '../components/charts/DiseaseRiskChart'
+import HealthGaugeChart from '../components/charts/HealthGaugeChart'
+import LoadingSpinner from '../components/LoadingSpinner'
+import ErrorMessage from '../components/ErrorMessage'
 
 const Dashboard = () => {
   const [stats, setStats] = useState({
@@ -16,8 +26,8 @@ const Dashboard = () => {
     chatMessages: 0,
     recommendations: 0
   })
-  const [recentActivity, setRecentActivity] = useState([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
 
   useEffect(() => {
     fetchDashboardData()
@@ -26,10 +36,10 @@ const Dashboard = () => {
   const fetchDashboardData = async () => {
     try {
       const [reportsRes, predictionsRes, chatRes, recommendationsRes] = await Promise.all([
-        api.get('/medical/reports').catch(() => ({ data: { reports: [] } })),
-        api.get('/predict/history').catch(() => ({ data: { predictions: [] } })),
-        api.get('/chat/history').catch(() => ({ data: { history: [] } })),
-        api.get('/recommendations').catch(() => ({ data: { recommendations: [] } }))
+        quietApi.get('/medical/reports').catch(() => ({ data: { reports: [] } })),
+        quietApi.get('/predict/history').catch(() => ({ data: { predictions: [] } })),
+        quietApi.get('/chat/history').catch(() => ({ data: { history: [] } })),
+        quietApi.get('/recommendations').catch(() => ({ data: { recommendations: [] } }))
       ])
 
       setStats({
@@ -40,6 +50,7 @@ const Dashboard = () => {
       })
     } catch (error) {
       console.error('Failed to fetch dashboard data:', error)
+      setError('Failed to load dashboard data. Please refresh the page.')
     } finally {
       setLoading(false)
     }
@@ -51,41 +62,54 @@ const Dashboard = () => {
       title: 'Upload Medical Report',
       description: 'Analyze your medical documents with AI',
       link: '/medical-reports',
-      color: 'bg-blue-500'
+      color: 'from-blue-500 to-blue-600',
+      iconColor: 'blue'
     },
     {
       icon: HeartPulse,
       title: 'Disease Prediction',
       description: 'Get AI-powered health risk assessment',
       link: '/prediction',
-      color: 'bg-red-500'
+      color: 'from-red-500 to-red-600',
+      iconColor: 'red'
     },
     {
       icon: MessageSquare,
       title: 'Health Chat',
       description: 'Ask health questions to AI assistant',
       link: '/chat',
-      color: 'bg-green-500'
+      color: 'from-green-500 to-green-600',
+      iconColor: 'green'
     },
     {
       icon: Lightbulb,
       title: 'Recommendations',
       description: 'Personalized health suggestions',
       link: '/recommendations',
-      color: 'bg-yellow-500'
+      color: 'from-yellow-500 to-yellow-600',
+      iconColor: 'yellow'
     }
   ]
 
   if (loading) {
+    return <LoadingSpinner size="lg" text="Loading your health data..." fullScreen={true} />
+  }
+
+  if (error) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+        <ErrorMessage 
+          message={error} 
+          type="error"
+          onDismiss={() => setError(null)}
+        />
       </div>
     )
   }
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div>
         <h1 className="text-3xl font-bold text-gray-900">Health Dashboard</h1>
         <p className="mt-2 text-gray-600">Welcome to your AI-powered health assistant</p>
@@ -93,52 +117,73 @@ const Dashboard = () => {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <StatCard 
+          title="Medical Reports" 
+          value={stats.reports} 
+          icon={FileText} 
+          color="blue"
+        />
+        <StatCard 
+          title="Predictions" 
+          value={stats.predictions} 
+          icon={HeartPulse} 
+          color="red"
+        />
+        <StatCard 
+          title="Chat Messages" 
+          value={stats.chatMessages} 
+          icon={MessageSquare} 
+          color="green"
+        />
+        <StatCard 
+          title="Recommendations" 
+          value={stats.recommendations} 
+          icon={Lightbulb} 
+          color="yellow"
+        />
+      </div>
+
+      {/* Charts Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="card">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Medical Reports</p>
-              <p className="text-3xl font-bold text-gray-900 mt-2">{stats.reports}</p>
-            </div>
-            <div className="p-3 bg-blue-100 rounded-full">
-              <FileText className="h-6 w-6 text-blue-600" />
-            </div>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+              <Activity className="h-5 w-5 mr-2 text-primary-600" />
+              Health Overview
+            </h3>
           </div>
+          <HealthOverviewChart stats={stats} />
         </div>
 
         <div className="card">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Predictions</p>
-              <p className="text-3xl font-bold text-gray-900 mt-2">{stats.predictions}</p>
-            </div>
-            <div className="p-3 bg-red-100 rounded-full">
-              <HeartPulse className="h-6 w-6 text-red-600" />
-            </div>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+              <TrendingUp className="h-5 w-5 mr-2 text-primary-600" />
+              Health Trends
+            </h3>
           </div>
+          <HealthTrendChart />
+        </div>
+      </div>
+
+      {/* Risk and Health Score */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="card lg:col-span-2">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+              <Shield className="h-5 w-5 mr-2 text-primary-600" />
+              Disease Risk Analysis
+            </h3>
+          </div>
+          <DiseaseRiskChart />
         </div>
 
         <div className="card">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Chat Messages</p>
-              <p className="text-3xl font-bold text-gray-900 mt-2">{stats.chatMessages}</p>
-            </div>
-            <div className="p-3 bg-green-100 rounded-full">
-              <MessageSquare className="h-6 w-6 text-green-600" />
-            </div>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">Health Score</h3>
           </div>
-        </div>
-
-        <div className="card">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Recommendations</p>
-              <p className="text-3xl font-bold text-gray-900 mt-2">{stats.recommendations}</p>
-            </div>
-            <div className="p-3 bg-yellow-100 rounded-full">
-              <Lightbulb className="h-6 w-6 text-yellow-600" />
-            </div>
-          </div>
+          <HealthGaugeChart value={78} title="Score" />
+          <p className="text-center text-sm text-gray-600 mt-4">Based on your recent health data</p>
         </div>
       </div>
 
@@ -155,11 +200,11 @@ const Dashboard = () => {
                 className="card hover:shadow-lg transition-shadow cursor-pointer group"
               >
                 <div className="flex items-start space-x-4">
-                  <div className={`p-3 ${action.color} rounded-lg`}>
+                  <div className={`p-3 bg-gradient-to-br ${action.color} rounded-lg`}>
                     <Icon className="h-6 w-6 text-white" />
                   </div>
                   <div className="flex-1">
-                    <h3 className="font-semibold text-gray-900 group-hover:text-primary-600">
+                    <h3 className="font-semibold text-gray-900 group-hover:text-primary-600 transition-colors">
                       {action.title}
                     </h3>
                     <p className="text-sm text-gray-600 mt-1">{action.description}</p>
@@ -172,14 +217,14 @@ const Dashboard = () => {
       </div>
 
       {/* Health Tips */}
-      <div className="card bg-gradient-to-r from-primary-50 to-medical-50">
+      <div className="card bg-gradient-to-r from-primary-500 to-medical-500 text-white">
         <div className="flex items-start space-x-4">
-          <div className="p-3 bg-medical-500 rounded-full">
+          <div className="p-3 bg-white/20 rounded-full">
             <AlertCircle className="h-6 w-6 text-white" />
           </div>
           <div className="flex-1">
-            <h3 className="font-semibold text-gray-900">Health Reminder</h3>
-            <p className="text-sm text-gray-700 mt-1">
+            <h3 className="font-semibold text-white text-lg">Health Reminder</h3>
+            <p className="text-sm text-white/90 mt-2">
               Remember to schedule regular check-ups with your healthcare provider. 
               Early detection is key to maintaining good health.
             </p>
