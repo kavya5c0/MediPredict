@@ -46,7 +46,7 @@ export const AuthProvider = ({ children }) => {
       toast.success('Login successful!')
       return response.data
     } catch (error) {
-      // API interceptor handles error toast
+      toast.error('Login failed: ' + (error.response?.data?.detail || error.message))
       throw error
     }
   }

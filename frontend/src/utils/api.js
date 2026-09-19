@@ -30,13 +30,18 @@ api.interceptors.response.use(
     
     // Handle authentication errors
     if (isAuthError(error)) {
-      localStorage.removeItem('token')
-      if (shouldShowToast) {
-        toast.error('Your session has expired. Please log in again.')
+      // Don't auto-redirect in demo mode
+      const isDemoToken = localStorage.getItem('token') === 'demo-token'
+      if (!isDemoToken) {
+        localStorage.removeItem('token')
+        localStorage.removeItem('user')
+        if (shouldShowToast) {
+          toast.error('Your session has expired. Please log in again.')
+        }
+        setTimeout(() => {
+          window.location.href = '/login'
+        }, 1500)
       }
-      setTimeout(() => {
-        window.location.href = '/login'
-      }, 1500)
       return Promise.reject(error)
     }
     

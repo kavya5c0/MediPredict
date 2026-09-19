@@ -72,12 +72,14 @@ const HealthChat = () => {
     if (!input.trim()) return
 
     const userMessage = { role: 'user', content: input }
-    setMessages([...messages, userMessage])
+    setMessages(prev => [...prev, userMessage])
     setInput('')
     setLoading(true)
 
     try {
+      console.log('Sending chat request...')
       const response = await api.post('/chat/query', { question: input })
+      console.log('Chat response:', response.data)
       const botMessage = { 
         role: 'assistant', 
         content: response.data.answer,
@@ -86,12 +88,23 @@ const HealthChat = () => {
       setMessages(prev => [...prev, botMessage])
     } catch (error) {
       console.error('Chat failed:', error)
-      const errorMessage = { 
-        role: 'assistant', 
-        content: 'Sorry, I encountered an error. Please try again.' + 
-                  (error.response?.data?.detail ? `: ${error.response.data.detail}` : '')
+      // Check if it's a 401 error
+      if (error.response?.status === 401) {
+        const errorMessage = { 
+          role: 'assistant', 
+          content: "I apologize, but there seems to be an authentication issue. Please try logging out and logging in again.",
+          sources: []
+        }
+        setMessages(prev => [...prev, errorMessage])
+      } else {
+        // Fallback response if API fails
+        const fallbackMessage = { 
+          role: 'assistant', 
+          content: "I apologize, but I'm currently unable to process your question. The AI chat service may be experiencing issues. Here are some general health tips: Maintain a balanced diet, exercise regularly, get enough sleep, and consult healthcare professionals for specific medical advice.",
+          sources: []
+        }
+        setMessages(prev => [...prev, fallbackMessage])
       }
-      setMessages(prev => [...prev, errorMessage])
     } finally {
       setLoading(false)
     }
