@@ -1,4 +1,4 @@
-def handler(request):
+def handler(event, context):
     return {
         "statusCode": 200,
         "body": '{"message": "MediPredict API", "status": "working"}',
