@@ -17,6 +17,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 # Include routers
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
 
