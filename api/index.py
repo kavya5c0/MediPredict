@@ -1,20 +1,13 @@
-import sys
-import os
+from fastapi import FastAPI
 
-# Add backend to path
-backend_path = os.path.join(os.path.dirname(__file__), '..', 'backend')
-if backend_path not in sys.path:
-    sys.path.insert(0, backend_path)
+app = FastAPI()
 
-try:
-    from app.main import app
-    asgi_app = app
-except Exception as e:
-    from fastapi import FastAPI
-    app = FastAPI()
-    
-    @app.get("/")
-    async def root():
-        return {"error": "Import failed", "message": str(e)}
-    
-    asgi_app = app
+@app.get("/")
+async def root():
+    return {"message": "MediPredict API", "status": "minimal"}
+
+@app.get("/health")
+async def health():
+    return {"status": "healthy"}
+
+asgi_app = app
