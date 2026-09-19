@@ -1,28 +1,11 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.core.database import init_redis, close_redis
 from app.api import auth
-from contextlib import asynccontextmanager
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    # Startup
-    try:
-        await init_redis()
-    except Exception as e:
-        print(f"Redis initialization failed: {e}")
-    yield
-    # Shutdown
-    try:
-        await close_redis()
-    except Exception as e:
-        print(f"Redis shutdown failed: {e}")
 
 app = FastAPI(
     title="AI-Powered Healthcare Assistant",
     description="Multi-disease healthcare assistant using RAG, medical report analysis, and personalized recommendations",
-    version="1.0.0",
-    lifespan=lifespan
+    version="1.0.0"
 )
 
 # CORS middleware
@@ -37,34 +20,30 @@ app.add_middleware(
 # Include routers
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
 
-# Try to include optional routers (may fail if dependencies are missing)
+# Include other routers
 try:
     from app.api import medical
     app.include_router(medical.router, prefix="/api/medical", tags=["Medical Reports"])
-    print("Medical reports router enabled")
-except ImportError as e:
-    print(f"Medical reports router disabled: {e}")
+except ImportError:
+    pass
 
 try:
     from app.api import prediction
     app.include_router(prediction.router, prefix="/api/predict", tags=["Disease Prediction"])
-    print("Disease prediction router enabled")
-except ImportError as e:
-    print(f"Disease prediction router disabled: {e}")
+except ImportError:
+    pass
 
 try:
     from app.api import chat
     app.include_router(chat.router, prefix="/api/chat", tags=["Health Chat"])
-    print("Health chat router enabled")
-except ImportError as e:
-    print(f"Health chat router disabled: {e}")
+except ImportError:
+    pass
 
 try:
     from app.api import recommendations
     app.include_router(recommendations.router, prefix="/api/recommendations", tags=["Recommendations"])
-    print("Recommendations router enabled")
-except ImportError as e:
-    print(f"Recommendations router disabled: {e}")
+except ImportError:
+    pass
 
 @app.get("/")
 async def root():
@@ -82,4 +61,4 @@ async def root():
 
 @app.get("/health")
 async def health_check():
-    return {"status": "healthy"}
+    return {"status": "healthy", "environment": "vercel"}
