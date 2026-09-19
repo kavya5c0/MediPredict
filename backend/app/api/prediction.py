@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from typing import List
-from app.models.disease_model import DiseasePredictor
+# Removed heavy PyTorch dependency for free tier deployment
+# from app.models.disease_model import DiseasePredictor
 from app.core.database import predictions_collection
 from app.core.security import get_current_user
 from bson import ObjectId
@@ -10,38 +11,15 @@ import logging
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
-predictor = DiseasePredictor()
+# Using rule-based prediction instead of ML models for free tier
+# predictor = DiseasePredictor()
 
 @router.post("/disease")
 async def predict_disease(
     health_data: dict,
     current_user: str = Depends(get_current_user)
 ):
-    """Predict disease risk based on health parameters"""
-    # Extract features from health data
-    features = [
-        health_data.get("age", 0),
-        health_data.get("bmi", 0),
-        health_data.get("blood_pressure_systolic", 0),
-        health_data.get("blood_pressure_diastolic", 0),
-        health_data.get("heart_rate", 0),
-        health_data.get("glucose_level", 0),
-        health_data.get("cholesterol", 0),
-        1 if health_data.get("smoking", False) else 0,
-        1 if health_data.get("alcohol", False) else 0,
-        1 if health_data.get("family_history_diabetes", False) else 0,
-        1 if health_data.get("family_history_heart", False) else 0,
-        1 if health_data.get("family_history_hypertension", False) else 0,
-        health_data.get("physical_activity", 0),
-        health_data.get("sleep_hours", 0),
-        health_data.get("stress_level", 0),
-        1 if health_data.get("diabetes", False) else 0,
-        1 if health_data.get("heart_disease", False) else 0,
-        1 if health_data.get("hypertension", False) else 0,
-        1 if health_data.get("asthma", False) else 0,
-        1 if health_data.get("arthritis", False) else 0
-    ]
-    
+    """Predict disease risk based on health parameters using rule-based analysis"""
     try:
         # Calculate rule-based disease probabilities based on actual health data
         probabilities = _calculate_disease_probabilities(health_data)

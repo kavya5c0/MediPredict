@@ -1,0 +1,53 @@
+# Core FastAPI dependencies
+fastapi==0.104.1
+uvicorn==0.24.0
+pydantic==2.5.0
+pydantic-settings==2.1.0
+python-multipart==0.0.6
+
+# Lightweight RAG alternatives (no heavy ML models)
+langchain==0.1.0
+langchain-community==0.0.10
+chromadb==0.4.22
+sentence-transformers==2.2.2
+
+# OpenAI for LLM (lightweight alternative to local models)
+openai==1.3.7
+
+# Basic ML (removed heavy PyTorch/transformers for free tier)
+scikit-learn==1.3.2
+pandas==2.2.3
+numpy==1.26.2
+
+# OCR (can be optional)
+python-dotenv==1.0.0
+aiofiles==23.2.1
+
+# Authentication
+passlib==1.7.4
+python-jose[cryptography]==3.3.0
+bcrypt==4.1.1
+
+# Database (MongoDB - use Render's free tier)
+pymongo==4.6.0
+motor==3.3.2
+
+# Optional: Redis (can be disabled for free tier)
+redis==5.0.1
+
+# Report generation
+reportlab==4.0.7
+
+# NLP (lightweight alternatives)
+nltk==3.8.1
+
+# Removed for free tier optimization:
+# - torch==2.1.1 (500MB+)
+# - torchvision==0.16.1 (200MB+)
+# - transformers==4.35.2 (heavy)
+# - spacy==3.7.2 (heavy)
+# - biopython==1.83
+# - pytesseract==0.3.10 (requires system dependencies)
+# - opencv-python==4.8.1.78 (heavy)
+# - pillow==10.1.0 (can be added if needed)
+# - celery==5.3.4 (requires Redis worker)

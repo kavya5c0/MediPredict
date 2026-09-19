@@ -1,0 +1,42 @@
+services:
+  # Backend API Service
+  - type: web
+    name: medipredict-backend
+    runtime: docker
+    plan: free
+    envVars:
+      - key: PORT
+        value: 8000
+      - key: PYTHON_VERSION
+        value: 3.9
+      # Database Configuration (Render provides free PostgreSQL)
+      - key: DATABASE_URL
+        fromDatabase:
+          name: medipredict-db
+          property: connectionString
+      # MongoDB (use free tier from MongoDB Atlas or skip for demo)
+      - key: MONGODB_URI
+        value: mongodb://localhost:27017/healthcare_db
+      # Redis (optional - can be disabled for free tier)
+      - key: REDIS_URL
+        value: redis://localhost:6379
+      # OpenAI API (optional - uses keyword fallback if not provided)
+      - key: OPENAI_API_KEY
+        generateValue: true
+      # Security
+      - key: SECRET_KEY
+        generateValue: true
+      # Feature flags
+      - key: ENABLE_ML_MODELS
+        value: "false"
+      - key: ENABLE_OCR
+        value: "false"
+      - key: ENABLE_RAG
+        value: "true"
+
+databases:
+  # Free PostgreSQL database from Render
+  - name: medipredict-db
+    databaseName: medipredict
+    user: medipredict_user
+    plan: free
