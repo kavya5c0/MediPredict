@@ -1,7 +1,8 @@
-def handler(event, context):
+# Vercel serverless function
+def handler(request):
     return {
         "statusCode": 200,
-        "body": '{"message": "MediPredict API", "status": "working"}',
+        "body": '{"message": "Hello from Vercel"}',
         "headers": {
             "Content-Type": "application/json"
         }
