@@ -17,6 +17,17 @@ COPY requirements-render.txt requirements.txt
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
+# Build frontend
+FROM node:18-slim as frontend-builder
+
+WORKDIR /frontend
+
+COPY frontend/package*.json ./
+RUN npm install
+
+COPY frontend/ ./
+RUN npm run build
+
 # Production stage
 FROM python:3.9-slim
 
@@ -33,6 +44,9 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 
 # Copy application code
 COPY backend/ .
+
+# Copy frontend build
+COPY --from=frontend-builder /frontend/dist ./frontend/dist
 
 # Create necessary directories
 RUN mkdir -p uploads data/chroma_db

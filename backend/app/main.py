@@ -1,7 +1,10 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from app.api import auth
 import os
+from pathlib import Path
 
 # Check if running in Vercel
 IS_VERCEL = os.environ.get('VERCEL') == '1'
@@ -49,8 +52,25 @@ try:
 except Exception as e:
     print(f"Recommendations router failed: {e}")
 
+# Mount static files for frontend
+frontend_dist = Path(__file__).parent.parent / "frontend" / "dist"
+if frontend_dist.exists():
+    app.mount("/static", StaticFiles(directory=str(frontend_dist / "assets")), name="static")
+    
+    @app.get("/{path:path}")
+    async def serve_frontend(path: str):
+        if path.startswith("api"):
+            return {"error": "API endpoint not found"}
+        file_path = frontend_dist / path
+        if file_path.exists() and file_path.is_file():
+            return FileResponse(file_path)
+        return FileResponse(frontend_dist / "index.html")
+
 @app.get("/")
 async def root():
+    # Serve frontend index.html if available
+    if frontend_dist.exists():
+        return FileResponse(frontend_dist / "index.html")
     return {
         "message": "AI-Powered Healthcare Assistant API",
         "version": "1.0.0",
