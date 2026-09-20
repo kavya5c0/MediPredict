@@ -20,7 +20,7 @@ RUN pip install --no-cache-dir --upgrade pip && \
 # Build frontend
 FROM node:18-slim as frontend-builder
 
-WORKDIR /frontend
+WORKDIR /app/frontend
 
 COPY frontend/package*.json ./
 RUN npm install
@@ -45,8 +45,8 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 # Copy application code
 COPY backend/ .
 
-# Copy frontend build
-COPY --from=frontend-builder /frontend/dist ./frontend/dist
+# Copy frontend build to the correct location
+COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
 
 # Create necessary directories
 RUN mkdir -p uploads data/chroma_db
