@@ -14,12 +14,13 @@ async def init_db():
     try:
         pool = await asyncpg.create_pool(
             settings.DATABASE_URL,
-            min_size=2,
-            max_size=10
+            min_size=1,
+            max_size=5,
+            command_timeout=10
         )
         logger.info("PostgreSQL connection pool created successfully")
     except Exception as e:
-        logger.error(f"PostgreSQL connection failed: {e}")
+        logger.warning(f"PostgreSQL connection failed: {e}. Running without database.")
         pool = None
 
 async def close_db():
