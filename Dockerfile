@@ -1,52 +1,34 @@
-# Multi-stage Dockerfile for optimized deployment
-FROM python:3.9-slim as builder
+FROM python:3.9-slim
 
-# Set working directory
 WORKDIR /app
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     g++ \
+    curl \
+    nodejs \
+    npm \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements from root
+# Copy requirements
 COPY requirements.txt requirements.txt
 
 # Install Python dependencies
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
+# Copy backend
+COPY backend/ .
+
 # Build frontend
-FROM node:18-slim as frontend-builder
-
 WORKDIR /app/frontend
-
 COPY frontend/package*.json ./
 RUN npm install
-
 COPY frontend/ ./
 RUN npm run build
 
-# Production stage
-FROM python:3.9-slim
-
 WORKDIR /app
-
-# Install runtime dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
-
-# Copy Python dependencies from builder
-COPY --from=builder /usr/local/lib/python3.9/site-packages /usr/local/lib/python3.9/site-packages
-COPY --from=builder /usr/local/bin /usr/local/bin
-
-# Copy application code
-COPY backend/ .
-
-# Copy frontend build to the correct location
-COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
 
 # Create necessary directories
 RUN mkdir -p uploads data/chroma_db
