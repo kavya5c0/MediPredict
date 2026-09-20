@@ -4,100 +4,120 @@ from datetime import datetime, timedelta
 from app.core.security import (
     verify_password, get_password_hash, create_access_token, get_current_user
 )
-from app.core.database import users_collection
+from app.core.database import get_db, release_db
 from app.core.config import settings
-from bson import ObjectId
 import logging
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+@router.on_event("startup")
+async def startup():
+    """Create tables on startup"""
+    from app.core.database import init_db
+    await init_db()
+    
+    conn = await get_db()
+    try:
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                id SERIAL PRIMARY KEY,
+                email VARCHAR(255) UNIQUE NOT NULL,
+                password VARCHAR(255) NOT NULL,
+                full_name VARCHAR(255),
+                age INTEGER,
+                gender VARCHAR(50),
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                conditions TEXT[] DEFAULT '{}',
+                medications TEXT[] DEFAULT '{}',
+                health_profile JSONB DEFAULT '{}'
+            )
+        """)
+        logger.info("Users table created/verified")
+    finally:
+        await release_db(conn)
+
 @router.post("/register")
 async def register(user_data: dict):
     """Register a new user"""
-    if users_collection is None:
-        # Fallback for demo without database
-        import uuid
-        user_id = str(uuid.uuid4())
-        return {
-            "message": "User registered successfully (demo mode)",
-            "user_id": user_id
-        }
-    
-    # Check if user exists
-    existing_user = await users_collection.find_one({"email": user_data["email"]})
-    if existing_user:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email already registered"
+    conn = await get_db()
+    try:
+        # Check if user exists
+        existing_user = await conn.fetchrow(
+            "SELECT id FROM users WHERE email = $1",
+            user_data["email"]
         )
-    
-    # Hash password
-    user_data["password"] = get_password_hash(user_data["password"])
-    
-    # Create user
-    user_data["created_at"] = datetime.utcnow()
-    user_data["conditions"] = []
-    user_data["medications"] = []
-    user_data["health_profile"] = {}
-    
-    result = await users_collection.insert_one(user_data)
-    
-    return {
-        "message": "User registered successfully",
-        "user_id": str(result.inserted_id)
-    }
+        if existing_user:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email already registered"
+            )
+        
+        # Hash password
+        hashed_password = get_password_hash(user_data["password"])
+        
+        # Create user
+        user_id = await conn.fetchrow("""
+            INSERT INTO users (email, password, full_name, age, gender)
+            VALUES ($1, $2, $3, $4, $5)
+            RETURNING id
+        """, user_data["email"], hashed_password, user_data.get("full_name"), 
+            user_data.get("age"), user_data.get("gender"))
+        
+        return {
+            "message": "User registered successfully",
+            "user_id": str(user_id["id"])
+        }
+    finally:
+        await release_db(conn)
 
 @router.post("/login")
 async def login(form_data: OAuth2PasswordRequestForm = Depends()):
     """Login user and return access token"""
-    if users_collection is None:
-        # Fallback for demo without database
+    conn = await get_db()
+    try:
+        user = await conn.fetchrow(
+            "SELECT * FROM users WHERE email = $1",
+            form_data.username
+        )
+        
+        if not user or not verify_password(form_data.password, user["password"]):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Incorrect email or password",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        
         access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
         access_token = create_access_token(
-            data={"sub": "demo-user"}, expires_delta=access_token_expires
+            data={"sub": str(user["id"])}, expires_delta=access_token_expires
         )
+        
         return {
             "access_token": access_token,
             "token_type": "bearer",
-            "user_id": "demo-user"
+            "user_id": str(user["id"])
         }
-    
-    user = await users_collection.find_one({"email": form_data.username})
-    
-    if not user or not verify_password(form_data.password, user["password"]):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    
-    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(
-        data={"sub": str(user["_id"])}, expires_delta=access_token_expires
-    )
-    
-    return {
-        "access_token": access_token,
-        "token_type": "bearer",
-        "user_id": str(user["_id"])
-    }
+    finally:
+        await release_db(conn)
 
 @router.get("/me")
 async def get_me(current_user: str = Depends(get_current_user)):
     """Get current user information"""
-    if users_collection is None:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Database not available. Please ensure MongoDB is running."
+    conn = await get_db()
+    try:
+        user = await conn.fetchrow(
+            "SELECT id, email, full_name, age, gender, created_at, conditions, medications, health_profile FROM users WHERE id = $1",
+            int(current_user)
         )
-    
-    user = await users_collection.find_one({"_id": ObjectId(current_user)})
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    
-    user.pop("password", None)
-    user["_id"] = str(user["_id"])
-    
-    return user
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        user_dict = dict(user)
+        user_dict.pop("password", None)
+        user_dict["id"] = str(user_dict["id"])
+        
+        return user_dict
+    finally:
+        await release_db(conn)

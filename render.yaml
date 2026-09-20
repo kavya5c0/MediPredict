@@ -14,15 +14,6 @@ services:
         fromDatabase:
           name: medipredict-db
           property: connectionString
-      # MongoDB (use free tier from MongoDB Atlas or skip for demo)
-      - key: MONGODB_URI
-        value: mongodb://localhost:27017/healthcare_db
-      # Redis (optional - can be disabled for free tier)
-      - key: REDIS_URL
-        value: redis://localhost:6379
-      # OpenAI API (optional - uses keyword fallback if not provided)
-      - key: OPENAI_API_KEY
-        generateValue: true
       # Security
       - key: SECRET_KEY
         generateValue: true

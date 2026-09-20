@@ -9,8 +9,7 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     
     # Database Configuration
-    MONGODB_URI: str = "mongodb://localhost:27017/healthcare_db"
-    REDIS_URL: str = "redis://localhost:6379/0"
+    DATABASE_URL: str = "postgresql://localhost:5432/healthcare_db"
     
     # Model Configuration
     DISEASE_MODEL_PATH: str = "models/disease_prediction.pth"

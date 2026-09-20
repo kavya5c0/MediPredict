@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from app.api import auth
+from app.core.database import init_db, close_db
 import os
 from pathlib import Path
 
@@ -88,3 +89,11 @@ async def root():
 @app.get("/health")
 async def health_check():
     return {"status": "healthy", "environment": "vercel" if IS_VERCEL else "local"}
+
+@app.on_event("startup")
+async def startup_event():
+    await init_db()
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    await close_db()
