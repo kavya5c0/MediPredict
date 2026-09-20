@@ -12,32 +12,6 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-@router.on_event("startup")
-async def startup():
-    """Create tables on startup"""
-    from app.core.database import init_db
-    await init_db()
-    
-    conn = await get_db()
-    try:
-        await conn.execute("""
-            CREATE TABLE IF NOT EXISTS users (
-                id SERIAL PRIMARY KEY,
-                email VARCHAR(255) UNIQUE NOT NULL,
-                password VARCHAR(255) NOT NULL,
-                full_name VARCHAR(255),
-                age INTEGER,
-                gender VARCHAR(50),
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                conditions TEXT[] DEFAULT '{}',
-                medications TEXT[] DEFAULT '{}',
-                health_profile JSONB DEFAULT '{}'
-            )
-        """)
-        logger.info("Users table created/verified")
-    finally:
-        await release_db(conn)
-
 @router.post("/register")
 async def register(user_data: dict):
     """Register a new user"""

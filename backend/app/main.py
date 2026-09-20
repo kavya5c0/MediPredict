@@ -93,6 +93,67 @@ async def health_check():
 @app.on_event("startup")
 async def startup_event():
     await init_db()
+    
+    # Create tables
+    from app.core.database import get_db, release_db
+    conn = await get_db()
+    try:
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                id SERIAL PRIMARY KEY,
+                email VARCHAR(255) UNIQUE NOT NULL,
+                password VARCHAR(255) NOT NULL,
+                full_name VARCHAR(255),
+                age INTEGER,
+                gender VARCHAR(50),
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                conditions TEXT[] DEFAULT '{}',
+                medications TEXT[] DEFAULT '{}',
+                health_profile JSONB DEFAULT '{}'
+            )
+        """)
+        
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS medical_reports (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER REFERENCES users(id),
+                filename VARCHAR(255),
+                file_path TEXT,
+                text_input TEXT,
+                analysis JSONB,
+                uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                analyzed_at TIMESTAMP
+            )
+        """)
+        
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS predictions (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER REFERENCES users(id),
+                health_data JSONB,
+                predicted_disease VARCHAR(255),
+                confidence FLOAT,
+                risk_factors TEXT[],
+                recommendations TEXT[],
+                all_probabilities JSONB,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS chat_history (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER REFERENCES users(id),
+                question TEXT,
+                answer TEXT,
+                source_documents TEXT[],
+                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        
+        print("Database tables created/verified")
+    finally:
+        await release_db(conn)
 
 @app.on_event("shutdown")
 async def shutdown_event():
