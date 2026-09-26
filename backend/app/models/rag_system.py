@@ -1,211 +1,215 @@
-from langchain_community.embeddings import HuggingFaceEmbeddings
-from langchain_community.vectorstores import Chroma
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain.chains import RetrievalQA
-from langchain_openai import OpenAI
-from langchain.prompts import PromptTemplate
+"""
+Real RAG (Retrieval-Augmented Generation) System
+Uses OpenAI API + ChromaDB for AI-powered medical responses
+"""
+
+import chromadb
+from chromadb.config import Settings
+from sentence_transformers import SentenceTransformer
+import openai
 from typing import List, Dict
-import os
+import logging
 from app.core.config import settings
-import re
 
-class MedicalRAGSystem:
+logger = logging.getLogger(__name__)
+
+class RAGSystem:
     def __init__(self):
+        self.embedding_model = None
+        self.chroma_client = None
+        self.collection = None
+        self.initialized = False
+        
+    async def initialize(self):
+        """Initialize RAG system with vector database and embedding model"""
         try:
-            self.embeddings = HuggingFaceEmbeddings(
-                model_name=settings.EMBEDDING_MODEL
-            )
-        except Exception as e:
-            print(f"Failed to initialize embeddings: {e}")
-            self.embeddings = None
-        
-        self.vectorstore = None
-        self.qa_chain = None
-        self.use_keyword_fallback = False
-        
-        # Check if OpenAI key is a placeholder or invalid
-        if not settings.OPENAI_API_KEY or settings.OPENAI_API_KEY == "your_openai_api_key_here":
-            print("OpenAI API key not configured, using keyword-based fallback")
-            self.llm = None
-            self.use_keyword_fallback = True
-        else:
-            try:
-                self.llm = OpenAI(
-                    openai_api_key=settings.OPENAI_API_KEY,
-                    temperature=0.7
-                )
-            except Exception as e:
-                print(f"Failed to initialize LLM: {e}, using keyword-based fallback")
-                self.llm = None
-                self.use_keyword_fallback = True
-        
-    def initialize_vectorstore(self, documents: List[str] = None):
-        """Initialize ChromaDB vector store with medical documents"""
-        if not self.embeddings:
-            print("Embeddings not available, skipping vector store initialization")
-            return
+            # Initialize embedding model
+            self.embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
+            logger.info("Embedding model loaded successfully")
             
-        persist_dir = settings.CHROMA_PERSIST_DIR
-        
-        try:
-            if os.path.exists(persist_dir):
-                self.vectorstore = Chroma(
-                    persist_directory=persist_dir,
-                    embedding_function=self.embeddings
-                )
-            else:
-                if documents:
-                    self.create_knowledge_base(documents)
-                else:
-                    os.makedirs(persist_dir, exist_ok=True)
-                    self.vectorstore = Chroma(
-                        persist_directory=persist_dir,
-                        embedding_function=self.embeddings
-                    )
-        except Exception as e:
-            print(f"Failed to initialize vector store: {e}")
-    
-    def create_knowledge_base(self, documents: List[str]):
-        """Create knowledge base from medical documents"""
-        text_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=1000,
-            chunk_overlap=200,
-            length_function=len
-        )
-        
-        texts = []
-        for doc in documents:
-            chunks = text_splitter.split_text(doc)
-            texts.extend(chunks)
-        
-        self.vectorstore = Chroma.from_texts(
-            texts=texts,
-            embedding=self.embeddings,
-            persist_directory=settings.CHROMA_PERSIST_DIR
-        )
-    
-    def setup_qa_chain(self):
-        """Setup RAG chain for medical queries"""
-        if self.use_keyword_fallback:
-            print("Using keyword-based fallback, skipping QA chain setup")
-            return
-            
-        if not self.vectorstore:
-            self.initialize_vectorstore()
-        
-        if not self.vectorstore or not self.llm:
-            print("Cannot setup QA chain: missing vectorstore or LLM")
-            return
-        
-        try:
-            retriever = self.vectorstore.as_retriever(
-                search_kwargs={"k": 3}
+            # Initialize ChromaDB
+            self.chroma_client = chromadb.PersistentClient(
+                path="data/chroma_db",
+                settings=Settings(anonymized_telemetry=False)
             )
             
-            prompt_template = """
-            You are a medical AI assistant. Use the following pieces of context to answer the question about health and medical conditions.
-            If you don't know the answer based on the context, say that you don't know and suggest consulting a healthcare professional.
-            Always include a disclaimer that this is not medical advice.
-            
-            Context: {context}
-            
-            Question: {question}
-            
-            Answer:
-            """
-            
-            PROMPT = PromptTemplate(
-                template=prompt_template,
-                input_variables=["context", "question"]
+            # Get or create collection
+            self.collection = self.chroma_client.get_or_create_collection(
+                name="medical_knowledge",
+                metadata={"hnsw:space": "cosine"}
             )
             
-            self.qa_chain = RetrievalQA.from_chain_type(
-                llm=self.llm,
-                chain_type="stuff",
-                retriever=retriever,
-                chain_type_kwargs={"prompt": PROMPT},
-                return_source_documents=True
-            )
+            # Check if collection is empty, populate with data
+            if self.collection.count() == 0:
+                await self.populate_knowledge_base()
+            
+            self.initialized = True
+            logger.info("RAG system initialized successfully")
+            
         except Exception as e:
-            print(f"Failed to setup QA chain: {e}")
-            self.use_keyword_fallback = True
+            logger.error(f"RAG system initialization failed: {e}")
+            self.initialized = False
     
-    def _keyword_based_response(self, question: str) -> Dict:
-        """Fallback keyword-based response when OpenAI is not available"""
-        question_lower = question.lower()
+    async def populate_knowledge_base(self):
+        """Populate vector database with medical knowledge"""
+        from app.data.medical_knowledge import MEDICAL_KNOWLEDGE_BASE
         
-        # Define simple keyword-based responses
-        responses = {
-            "diabetes": "Diabetes is a condition where your body has trouble regulating blood sugar. Type 1 diabetes is usually diagnosed in childhood, while Type 2 is often related to lifestyle factors. Key management strategies include monitoring blood sugar, maintaining a healthy diet, regular exercise, and taking prescribed medications. Please consult with a healthcare professional for personalized advice.",
-            
-            "hypertension|blood pressure|high bp": "Hypertension (high blood pressure) is when the force of blood against artery walls is consistently too high. It can lead to heart disease and stroke. Management includes reducing sodium intake, maintaining a healthy weight, regular exercise, limiting alcohol, and taking prescribed medications. Regular monitoring is important. Please consult a healthcare professional.",
-            
-            "heart|cardiac|cardiovascular": "Heart health is crucial for overall wellbeing. Key factors include maintaining healthy cholesterol levels, blood pressure, regular exercise, a balanced diet, and not smoking. Warning signs of heart problems include chest pain, shortness of breath, and irregular heartbeat. If you experience these symptoms, seek immediate medical attention.",
-            
-            "asthma|breathing|respiratory": "Asthma is a respiratory condition causing breathing difficulties. Triggers can include allergens, exercise, cold air, or stress. Management involves avoiding triggers, using prescribed inhalers, and having an asthma action plan. If you experience severe breathing difficulties, seek emergency medical care.",
-            
-            "diet|nutrition|food|eating": "A balanced diet is essential for good health. Focus on fruits, vegetables, whole grains, lean proteins, and healthy fats. Limit processed foods, added sugars, and excessive salt. Stay hydrated and consider portion sizes. Nutritional needs vary by individual, so consult a healthcare professional or registered dietitian for personalized advice.",
-            
-            "exercise|physical activity|workout": "Regular physical activity is crucial for health. Adults should aim for at least 150 minutes of moderate aerobic activity or 75 minutes of vigorous activity per week, plus strength training twice weekly. Always consult a healthcare provider before starting a new exercise program, especially if you have existing health conditions.",
-            
-            "stress|mental health|anxiety|depression": "Mental health is as important as physical health. Stress management techniques include regular exercise, adequate sleep, mindfulness, and social connections. If you're experiencing persistent anxiety or depression, please seek help from a mental health professional. There's no shame in asking for support.",
-        }
+        documents = []
+        metadatas = []
+        ids = []
         
-        # Find matching response
-        for keywords, response in responses.items():
-            if any(re.search(keyword.strip(), question_lower) for keyword in keywords.split("|")):
-                return {
-                    "answer": f"{response}\n\n**Disclaimer:** This is general health information, not medical advice. Please consult a healthcare professional for personalized guidance.",
-                    "source_documents": []
-                }
+        # Convert medical knowledge to documents
+        for category, data in MEDICAL_KNOWLEDGE_BASE.items():
+            if isinstance(data, dict):
+                doc_text = f"{category}: "
+                for key, value in data.items():
+                    if isinstance(value, list):
+                        doc_text += f"{key}: {', '.join(str(v) for v in value)}. "
+                    elif isinstance(value, dict):
+                        doc_text += f"{key}: {value}. "
+                    else:
+                        doc_text += f"{key}: {value}. "
+                
+                documents.append(doc_text)
+                metadatas.append({"category": category, "source": "medical_knowledge_base"})
+                ids.append(f"{category}_knowledge")
         
-        # Default response if no keywords match
-        return {
-            "answer": "I can provide general health information about topics like diabetes, heart health, hypertension, asthma, diet, exercise, and mental health. However, for specific medical questions or conditions, I strongly recommend consulting with a qualified healthcare professional who can provide personalized advice based on your individual situation.\n\n**Disclaimer:** This is not medical advice. Please consult a healthcare professional.",
-            "source_documents": []
-        }
+        # Add documents to collection
+        if documents:
+            embeddings = self.embedding_model.encode(documents).tolist()
+            self.collection.add(
+                documents=documents,
+                embeddings=embeddings,
+                metadatas=metadatas,
+                ids=ids
+            )
+            logger.info(f"Added {len(documents)} documents to knowledge base")
     
-    def query(self, question: str) -> Dict:
-        """Query the RAG system with a medical question - never crashes, always returns a response"""
-        # Use keyword fallback if configured or if QA chain is not available
-        if self.use_keyword_fallback or not self.qa_chain:
-            return self._keyword_based_response(question)
+    async def retrieve_relevant_documents(self, query: str, n_results: int = 3) -> List[Dict]:
+        """Retrieve relevant documents using vector similarity search"""
+        if not self.initialized:
+            logger.warning("RAG system not initialized")
+            return []
         
         try:
-            result = self.qa_chain({"query": question})
+            # Encode query
+            query_embedding = self.embedding_model.encode([query]).tolist()
             
-            return {
-                "answer": result["result"],
-                "source_documents": [
-                    {
-                        "content": doc.page_content,
-                        "metadata": doc.metadata
-                    }
-                    for doc in result["source_documents"]
-                ]
-            }
-        except Exception as e:
-            print(f"Query with LLM failed: {e}, falling back to keyword-based response")
-            # Fallback to keyword-based response instead of crashing
-            return self._keyword_based_response(question)
-    
-    def add_documents(self, documents: List[str]):
-        """Add new documents to the knowledge base"""
-        if not self.vectorstore:
-            print("Vector store not initialized, cannot add documents")
-            return
-            
-        try:
-            text_splitter = RecursiveCharacterTextSplitter(
-                chunk_size=1000,
-                chunk_overlap=200
+            # Search for similar documents
+            results = self.collection.query(
+                query_embeddings=query_embedding,
+                n_results=n_results
             )
             
-            for doc in documents:
-                chunks = text_splitter.split_text(doc)
-                self.vectorstore.add_texts(chunks)
+            # Format results
+            retrieved_docs = []
+            if results['documents'] and results['documents'][0]:
+                for i, doc in enumerate(results['documents'][0]):
+                    retrieved_docs.append({
+                        "content": doc,
+                        "metadata": results['metadatas'][0][i] if results['metadatas'] else {},
+                        "distance": results['distances'][0][i] if results['distances'] else 0
+                    })
             
-            self.vectorstore.persist()
+            return retrieved_docs
+            
         except Exception as e:
-            print(f"Failed to add documents: {e}")
+            logger.error(f"Document retrieval failed: {e}")
+            return []
+    
+    async def generate_response(self, query: str, retrieved_docs: List[Dict]) -> str:
+        """Generate AI response using OpenAI API"""
+        if not settings.OPENAI_API_KEY or settings.OPENAI_API_KEY == "sk-placeholder":
+            logger.warning("OpenAI API key not configured, using fallback")
+            return await self.generate_fallback_response(query, retrieved_docs)
+        
+        try:
+            # Prepare context from retrieved documents
+            context = "\n\n".join([doc["content"] for doc in retrieved_docs])
+            
+            # Prepare messages for OpenAI
+            messages = [
+                {
+                    "role": "system",
+                    "content": """You are a helpful medical assistant AI. Provide accurate, evidence-based health information based on the provided context. 
+                    Always include a disclaimer that this is not medical advice and users should consult healthcare professionals.
+                    Be thorough but concise, and prioritize patient safety."""
+                },
+                {
+                    "role": "user",
+                    "content": f"""Context from medical knowledge base:
+{context}
 
+User question: {query}
+
+Please provide a helpful, evidence-based response using the context above."""
+                }
+            ]
+            
+            # Call OpenAI API using newer client
+            client = openai.OpenAI(api_key=settings.OPENAI_API_KEY)
+            response = client.chat.completions.create(
+                model="gpt-3.5-turbo",
+                messages=messages,
+                temperature=0.7,
+                max_tokens=500
+            )
+            
+            return response.choices[0].message.content
+            
+        except Exception as e:
+            logger.error(f"OpenAI API call failed: {e}")
+            return await self.generate_fallback_response(query, retrieved_docs)
+    
+    async def generate_fallback_response(self, query: str, retrieved_docs: List[Dict]) -> str:
+        """Generate fallback response when AI is unavailable"""
+        from app.data.medical_knowledge import MEDICAL_KNOWLEDGE_BASE
+        
+        query_lower = query.lower()
+        
+        # Use retrieved documents to build response
+        if retrieved_docs:
+            context = "\n\n".join([doc["content"] for doc in retrieved_docs])
+            response = f"Based on medical knowledge:\n\n{context}\n\n"
+        else:
+            # Fallback to knowledge base search
+            response = ""
+            if "diabetes" in query_lower:
+                data = MEDICAL_KNOWLEDGE_BASE.get("diabetes", {})
+                response = f"### Diabetes Information\n\n"
+                response += f"**Symptoms:** {', '.join(data.get('symptoms', [])[:5])}\n\n"
+                response += f"**Risk Factors:** {', '.join(data.get('risk_factors', [])[:5])}\n\n"
+                response += f"**Prevention:** {', '.join(data.get('prevention', [])[:3])}"
+            elif "blood pressure" in query_lower or "hypertension" in query_lower:
+                data = MEDICAL_KNOWLEDGE_BASE.get("hypertension", {})
+                response = f"### Hypertension Information\n\n"
+                response += f"**Symptoms:** {', '.join(data.get('symptoms', [])[:5])}\n\n"
+                response += f"**Target BP:** {', '.join(data.get('target_blood_pressure', [])[:3])}\n\n"
+                response += f"**Prevention:** {', '.join(data.get('prevention', [])[:3])}"
+            else:
+                response = "I found general health information. Maintain a balanced diet, exercise regularly, get adequate sleep, and consult healthcare professionals for specific medical advice."
+        
+        response += "\n\n---\n\n**Disclaimer:** This information is for educational purposes only and is not a substitute for professional medical advice, diagnosis, or treatment. Always seek the advice of your physician or other qualified health provider with any questions you may have regarding a medical condition."
+        
+        return response
+    
+    async def query(self, question: str) -> Dict:
+        """Complete RAG pipeline: retrieve + generate"""
+        if not self.initialized:
+            await self.initialize()
+        
+        # Retrieve relevant documents
+        retrieved_docs = await self.retrieve_relevant_documents(question)
+        
+        # Generate response
+        response = await self.generate_response(question, retrieved_docs)
+        
+        return {
+            "answer": response,
+            "sources": [doc["metadata"] for doc in retrieved_docs],
+            "retrieved_docs_count": len(retrieved_docs),
+            "disclaimer": "This is not medical advice. Please consult a healthcare professional."
+        }
+
+# Global RAG instance
+rag_system = RAGSystem()

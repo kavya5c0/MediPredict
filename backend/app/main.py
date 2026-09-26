@@ -158,6 +158,15 @@ async def startup_event():
     except Exception as e:
         print(f"Database initialization failed: {e}")
         print("Application will start without database features")
+    
+    # Initialize RAG system
+    try:
+        from app.models.rag_system import rag_system
+        await rag_system.initialize()
+        print("RAG system initialized successfully")
+    except Exception as e:
+        print(f"RAG system initialization failed: {e}")
+        print("Chat will use fallback knowledge base")
 
 @app.on_event("shutdown")
 async def shutdown_event():
