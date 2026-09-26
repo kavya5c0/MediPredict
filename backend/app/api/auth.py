@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
-from datetime import datetime, timedelta
+from datetime import timedelta
 from app.core.security import (
     verify_password, get_password_hash, create_access_token, get_current_user
 )
@@ -18,12 +18,13 @@ async def register(user_data: dict):
     try:
         conn = await get_db()
     except Exception:
-        # Fallback for demo without database
+        # Fallback for demo without database - create realistic demo user
         import uuid
         user_id = str(uuid.uuid4())
         return {
             "message": "User registered successfully (demo mode - database unavailable)",
-            "user_id": user_id
+            "user_id": user_id,
+            "note": "In demo mode, data is not persisted. Please configure PostgreSQL for full functionality."
         }
     
     try:
@@ -62,7 +63,7 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
     try:
         conn = await get_db()
     except Exception:
-        # Fallback for demo without database
+        # Fallback for demo without database - generate realistic demo token
         access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
         access_token = create_access_token(
             data={"sub": "demo-user"}, expires_delta=access_token_expires
@@ -70,7 +71,8 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
         return {
             "access_token": access_token,
             "token_type": "bearer",
-            "user_id": "demo-user"
+            "user_id": "demo-user",
+            "note": "In demo mode, data is not persisted. Please configure PostgreSQL for full functionality."
         }
     
     try:
