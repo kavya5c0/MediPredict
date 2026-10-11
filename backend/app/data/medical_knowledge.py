@@ -216,6 +216,94 @@ MEDICAL_KNOWLEDGE_BASE = {
             "stage_2": "140+/90+ mmHg",
             "hypertensive_crisis": ">180/120 mmHg"
         }
+    },
+    "fever": {
+        "symptoms": [
+            "Body temperature above normal (98.6°F or 37°C)",
+            "Feeling hot to the touch",
+            "Sweating",
+            "Chills and shivering",
+            "Headache",
+            "Muscle aches",
+            "Loss of appetite",
+            "Irritability",
+            "Dehydration",
+            "General weakness"
+        ],
+        "common_causes": [
+            "Viral infections (common cold, flu)",
+            "Bacterial infections (strep throat, urinary tract infection)",
+            "Inflammation (rheumatoid arthritis)",
+            "Heat exhaustion",
+            "Medications (antibiotics, blood pressure medications)",
+            "Vaccinations",
+            "Sunburn or severe burns",
+            "Autoimmune disorders"
+        ],
+        "when_to_see_doctor": [
+            "Temperature above 103°F (39.4°C)",
+            "Fever lasting more than 3 days",
+            "Severe headache with neck stiffness",
+            "Confusion or difficulty thinking clearly",
+            "Difficulty breathing or chest pain",
+            "Severe abdominal pain or vomiting",
+            "Seizures or hallucinations",
+            "Fever in infants under 3 months old"
+        ],
+        "home_care": [
+            "Rest and get plenty of sleep",
+            "Stay hydrated by drinking fluids",
+            "Take acetaminophen (Tylenol) or ibuprofen (Advil)",
+            "Dress lightly and keep room comfortable",
+            "Use a lukewarm sponge bath (not cold)",
+            "Avoid cold baths or alcohol rubs",
+            "Monitor temperature regularly"
+        ],
+        "temperature_ranges": {
+            "normal": "97-99°F (36.1-37.2°C)",
+            "low_grade": "99-100.9°F (37.2-38.2°C)",
+            "moderate": "101-102.9°F (38.3-39.1°C)",
+            "high": "103-104°F (39.4-40°C)",
+            "very_high": "105°F or higher (40.6°C+)"
+        }
+    },
+    "back_pain": {
+        "symptoms": [
+            "Muscle aching",
+            "Shooting or stabbing pain",
+            "Pain that radiates down your leg",
+            "Limited flexibility or range of motion",
+            "Inability to stand up straight",
+            "Numbness or tingling in legs",
+            "Weakness in legs"
+        ],
+        "common_causes": [
+            "Muscle or ligament strain",
+            "Bulging or ruptured disks",
+            "Arthritis",
+            "Skeletal irregularities (scoliosis)",
+            "Osteoporosis",
+            "Poor posture",
+            "Lack of exercise",
+            "Excess weight"
+        ],
+        "prevention": [
+            "Maintain good posture",
+            "Exercise regularly to strengthen back muscles",
+            "Lift objects properly (bend knees, not waist)",
+            "Maintain healthy weight",
+            "Quit smoking",
+            "Avoid prolonged sitting",
+            "Use ergonomic furniture"
+        ],
+        "when_to_see_doctor": [
+            "Pain radiating down legs",
+            "Numbness or weakness in legs",
+            "Pain after fall or injury",
+            "Difficulty controlling bladder or bowels",
+            "Fever with back pain",
+            "Unexplained weight loss"
+        ]
     }
 }
 

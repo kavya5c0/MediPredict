@@ -24,10 +24,12 @@ async def health_chat_query(query_data: dict):
     try:
         conn = await get_db()
         try:
+            # Convert sources to array format
+            sources_array = result["sources"] if result["sources"] else []
             await conn.execute("""
                 INSERT INTO chat_history (user_id, question, answer, source_documents, timestamp)
                 VALUES ($1, $2, $3, $4, $5)
-            """, 1, question, result["answer"], str(result["sources"]), datetime.utcnow())
+            """, 1, question, result["answer"], sources_array, datetime.utcnow())
         finally:
             await release_db(conn)
     except Exception as e:

@@ -55,14 +55,14 @@ def get_lifestyle_recommendations(health_profile: dict) -> list:
         recommendations.append({
             "category": "Exercise",
             "title": "Increase Physical Activity",
-            description": "Aim for 150 minutes of moderate-intensity aerobic activity per week. Start with 30 minutes of brisk walking 5 days a week.",
+            "description": "Aim for 150 minutes of moderate-intensity aerobic activity per week. Start with 30 minutes of brisk walking 5 days a week.",
             "priority": "high",
             "actionable": True
         })
         recommendations.append({
             "category": "Exercise",
             "title": "Add Strength Training",
-            description": "Include muscle-strengthening activities at least 2 days per week. Work major muscle groups (legs, hips, back, abdomen, chest, shoulders, arms).",
+            "description": "Include muscle-strengthening activities at least 2 days per week. Work major muscle groups (legs, hips, back, abdomen, chest, shoulders, arms).",
             "priority": "medium",
             "actionable": True
         })
@@ -73,7 +73,7 @@ def get_lifestyle_recommendations(health_profile: dict) -> list:
         recommendations.append({
             "category": "Sleep",
             "title": "Improve Sleep Duration",
-            description": "Aim for 7-9 hours of quality sleep per night. Establish a consistent sleep schedule and create a relaxing bedtime routine.",
+            "description": "Aim for 7-9 hours of quality sleep per night. Establish a consistent sleep schedule and create a relaxing bedtime routine.",
             "priority": "high",
             "actionable": True
         })

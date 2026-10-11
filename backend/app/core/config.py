@@ -1,5 +1,6 @@
 from pydantic_settings import BaseSettings
 from typing import Optional
+import os
 
 class Settings(BaseSettings):
     # API Configuration
@@ -26,4 +27,8 @@ class Settings(BaseSettings):
         env_file = ".env"
         case_sensitive = True
 
+# Load from environment if available
 settings = Settings()
+# Override OPENAI_API_KEY from environment variable if set
+if os.getenv("OPENAI_API_KEY"):
+    settings.OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")

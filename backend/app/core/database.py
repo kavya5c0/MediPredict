@@ -34,9 +34,10 @@ async def get_db():
     """Get database connection from pool"""
     if pool is None:
         raise Exception("Database not connected")
-    return pool.acquire()
+    conn = await pool.acquire()
+    return conn
 
 async def release_db(conn):
     """Release database connection back to pool"""
-    if pool:
+    if pool and conn:
         await pool.release(conn)

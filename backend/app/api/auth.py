@@ -15,9 +15,14 @@ router = APIRouter()
 @router.post("/register")
 async def register(user_data: dict):
     """Register a new user"""
+    logger.info(f"Registration attempt for email: {user_data.get('email')}")
+    logger.info(f"Received data: {user_data}")
+    
     try:
         conn = await get_db()
-    except Exception:
+        logger.info("Database connection successful")
+    except Exception as e:
+        logger.error(f"Database connection failed: {e}")
         # Fallback for demo without database - create realistic demo user
         import uuid
         user_id = str(uuid.uuid4())
@@ -31,29 +36,45 @@ async def register(user_data: dict):
         # Check if user exists
         existing_user = await conn.fetchrow(
             "SELECT id FROM users WHERE email = $1",
-            user_data["email"]
+            user_data.get("email")
         )
         if existing_user:
+            logger.warning(f"Email already registered: {user_data.get('email')}")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Email already registered"
             )
         
         # Hash password
-        hashed_password = get_password_hash(user_data["password"])
+        hashed_password = get_password_hash(user_data.get("password"))
+        logger.info("Password hashed successfully")
+        
+        # Convert age to integer
+        try:
+            age = int(user_data.get("age", 0)) if user_data.get("age") else None
+        except (ValueError, TypeError):
+            age = None
         
         # Create user
         user_id = await conn.fetchrow("""
             INSERT INTO users (email, password, full_name, age, gender)
             VALUES ($1, $2, $3, $4, $5)
             RETURNING id
-        """, user_data["email"], hashed_password, user_data.get("full_name"), 
-            user_data.get("age"), user_data.get("gender"))
+        """, user_data.get("email"), hashed_password, user_data.get("full_name"), 
+            age, user_data.get("gender"))
+        
+        logger.info(f"User created successfully with ID: {user_id['id']}")
         
         return {
             "message": "User registered successfully",
             "user_id": str(user_id["id"])
         }
+    except Exception as e:
+        logger.error(f"Registration error: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Registration failed: {str(e)}"
+        )
     finally:
         await release_db(conn)
 

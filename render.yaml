@@ -14,6 +14,9 @@ services:
         fromDatabase:
           name: medipredict-db
           property: connectionString
+      # OpenAI API Key - Add your real API key here
+      - key: OPENAI_API_KEY
+        value: "sk-placeholder"  # REPLACE WITH YOUR REAL KEY
       # Security
       - key: SECRET_KEY
         generateValue: true
