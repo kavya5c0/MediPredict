@@ -167,6 +167,14 @@ async def startup_event():
     except Exception as e:
         print(f"RAG system initialization failed: {e}")
         print("Chat will use fallback knowledge base")
+    
+    # Initialize ML models
+    try:
+        from app.models.ml_models import ml_models
+        print("ML models loaded successfully")
+    except Exception as e:
+        print(f"ML models initialization failed: {e}")
+        print("Disease prediction will use rule-based fallback")
 
 @app.on_event("shutdown")
 async def shutdown_event():

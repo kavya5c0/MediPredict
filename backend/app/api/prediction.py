@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from app.data.medical_knowledge import DISEASE_RISK_CALCULATORS, MEDICAL_KNOWLEDGE_BASE
+from app.models.ml_models import ml_models
 from app.core.database import get_db, release_db
 from app.core.security import get_current_user
 from datetime import datetime
@@ -224,51 +225,86 @@ def generate_recommendations(risk_result: dict, health_data: dict) -> list:
 
 @router.post("/disease")
 async def predict_disease(health_data: dict):
-    """Predict disease based on health data using real medical criteria"""
+    """Predict disease using ML models trained on real medical data"""
     try:
         conn = await get_db()
     except Exception:
         # Fallback without database
         pass
     
-    # Calculate risks for different conditions
-    diabetes_risk = calculate_diabetes_risk(health_data)
-    cardio_risk = calculate_cardiovascular_risk(health_data)
+    # Use ML models for prediction
+    diabetes_result = ml_models.predict_diabetes(health_data)
+    heart_result = ml_models.predict_heart_disease(health_data)
+    hypertension_result = ml_models.predict_hypertension(health_data)
     
-    # Determine highest risk
-    risks = [
-        (diabetes_risk["risk_score"], diabetes_risk),
-        (cardio_risk["risk_score"], cardio_risk)
-    ]
-    risks.sort(key=lambda x: x[0], reverse=True)
+    # Collect results
+    predictions = []
+    all_probabilities = {}
     
-    highest_risk = risks[0][1]
+    if diabetes_result:
+        predictions.append({
+            "disease": "Type 2 Diabetes",
+            "prediction": diabetes_result["prediction"],
+            "probability": diabetes_result["probability"],
+            "risk_level": diabetes_result["risk_level"],
+            "method": "ML (Random Forest)"
+        })
+        all_probabilities["Type 2 Diabetes"] = diabetes_result["probability"]
     
-    # Generate recommendations
-    recommendations = generate_recommendations(highest_risk, health_data)
+    if heart_result:
+        predictions.append({
+            "disease": "Heart Disease",
+            "prediction": heart_result["prediction"],
+            "probability": heart_result["probability"],
+            "risk_level": heart_result["risk_level"],
+            "method": "ML (Random Forest)"
+        })
+        all_probabilities["Heart Disease"] = heart_result["probability"]
     
-    # Calculate probabilities
-    total_risk = diabetes_risk["risk_score"] + cardio_risk["risk_score"]
-    if total_risk > 0:
-        diabetes_prob = diabetes_risk["risk_score"] / total_risk
-        cardio_prob = cardio_risk["risk_score"] / total_risk
+    if hypertension_result:
+        predictions.append({
+            "disease": "Hypertension",
+            "prediction": hypertension_result["prediction"],
+            "probability": hypertension_result["probability"],
+            "risk_level": hypertension_result["risk_level"],
+            "method": "ML (Logistic Regression)"
+        })
+        all_probabilities["Hypertension"] = hypertension_result["probability"]
+    
+    # Find highest risk
+    if predictions:
+        predictions.sort(key=lambda x: x["probability"], reverse=True)
+        highest_risk = predictions[0]
     else:
-        diabetes_prob = 0.33
-        cardio_prob = 0.33
+        # Fallback to rule-based if ML models not available
+        diabetes_risk = calculate_diabetes_risk(health_data)
+        cardio_risk = calculate_cardiovascular_risk(health_data)
+        
+        risks = [
+            (diabetes_risk["risk_score"], diabetes_risk),
+            (cardio_risk["risk_score"], cardio_risk)
+        ]
+        risks.sort(key=lambda x: x[0], reverse=True)
+        highest_risk = risks[0][1]
+        
+        all_probabilities = {
+            "Type 2 Diabetes": 0.5,
+            "Cardiovascular Disease": 0.5,
+            "Hypertension": 0.3
+        }
     
-    all_probabilities = {
-        "Type 2 Diabetes": diabetes_prob,
-        "Cardiovascular Disease": cardio_prob,
-        "Hypertension": 0.2,
-        "Obesity": 0.15
-    }
+    # Generate recommendations based on ML predictions
+    recommendations = generate_ml_recommendations(predictions, health_data)
     
     result = {
-        "predicted_disease": highest_risk["predicted_disease"],
-        "confidence": highest_risk["confidence"],
-        "risk_factors": highest_risk["risk_factors"],
+        "predicted_disease": highest_risk.get("disease", "Unknown") if predictions else highest_risk["predicted_disease"],
+        "confidence": highest_risk.get("probability", 0.7) if predictions else highest_risk["confidence"],
+        "risk_level": highest_risk.get("risk_level", "Medium") if predictions else "Medium",
+        "method": "Machine Learning" if predictions else "Rule-Based",
+        "risk_factors": extract_risk_factors(health_data),
         "recommendations": [rec["action"] for rec in recommendations],
-        "all_probabilities": all_probabilities
+        "all_probabilities": all_probabilities,
+        "model_details": predictions
     }
     
     # Save to database if available
@@ -289,6 +325,57 @@ async def predict_disease(health_data: dict):
             pass
     
     return result
+
+def extract_risk_factors(health_data: dict) -> list:
+    """Extract risk factors from health data for ML model context"""
+    risk_factors = []
+    
+    bmi = health_data.get("bmi", 0)
+    if bmi >= 30:
+        risk_factors.append("Obesity (BMI ≥ 30)")
+    elif bmi >= 25:
+        risk_factors.append("Overweight (BMI 25-29.9)")
+    
+    if health_data.get("smoking", False):
+        risk_factors.append("Smoking")
+    
+    if health_data.get("physical_activity", 0) < 150:
+        risk_factors.append("Physical inactivity")
+    
+    if health_data.get("family_history_diabetes", False):
+        risk_factors.append("Family history of diabetes")
+    
+    return risk_factors
+
+def generate_ml_recommendations(predictions: list, health_data: dict) -> list:
+    """Generate recommendations based on ML model predictions"""
+    recommendations = []
+    
+    for pred in predictions:
+        if pred["risk_level"] == "High":
+            recommendations.append({
+                "category": pred["disease"],
+                "priority": "high",
+                "action": f"High risk for {pred['disease']} detected",
+                "details": f"ML model predicts {pred['probability']:.1%} probability"
+            })
+        elif pred["risk_level"] == "Medium":
+            recommendations.append({
+                "category": pred["disease"],
+                "priority": "medium",
+                "action": f"Moderate risk for {pred['disease']}",
+                "details": f"ML model predicts {pred['probability']:.1%} probability"
+            })
+    
+    # Add general health recommendations
+    recommendations.append({
+        "category": "General Health",
+        "priority": "medium",
+        "action": "Maintain regular health check-ups",
+        "details": "Monitor your health metrics regularly"
+    })
+    
+    return recommendations
 
 @router.get("/history")
 async def get_prediction_history(
