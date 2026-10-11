@@ -236,6 +236,10 @@ async def predict_disease(health_data: dict):
     diabetes_result = ml_models.predict_diabetes(health_data)
     heart_result = ml_models.predict_heart_disease(health_data)
     hypertension_result = ml_models.predict_hypertension(health_data)
+    stroke_result = ml_models.predict_stroke(health_data)
+    kidney_result = ml_models.predict_kidney_disease(health_data)
+    liver_result = ml_models.predict_liver_disease(health_data)
+    respiratory_result = ml_models.predict_respiratory_disease(health_data)
     
     # Collect results
     predictions = []
@@ -270,6 +274,46 @@ async def predict_disease(health_data: dict):
             "method": "ML (Logistic Regression)"
         })
         all_probabilities["Hypertension"] = hypertension_result["probability"]
+    
+    if stroke_result:
+        predictions.append({
+            "disease": "Stroke",
+            "prediction": stroke_result["prediction"],
+            "probability": stroke_result["probability"],
+            "risk_level": stroke_result["risk_level"],
+            "method": "ML (Random Forest)"
+        })
+        all_probabilities["Stroke"] = stroke_result["probability"]
+    
+    if kidney_result:
+        predictions.append({
+            "disease": "Kidney Disease",
+            "prediction": kidney_result["prediction"],
+            "probability": kidney_result["probability"],
+            "risk_level": kidney_result["risk_level"],
+            "method": "ML (Random Forest)"
+        })
+        all_probabilities["Kidney Disease"] = kidney_result["probability"]
+    
+    if liver_result:
+        predictions.append({
+            "disease": "Liver Disease",
+            "prediction": liver_result["prediction"],
+            "probability": liver_result["probability"],
+            "risk_level": liver_result["risk_level"],
+            "method": "ML (Random Forest)"
+        })
+        all_probabilities["Liver Disease"] = liver_result["probability"]
+    
+    if respiratory_result:
+        predictions.append({
+            "disease": "Respiratory Disease",
+            "prediction": respiratory_result["prediction"],
+            "probability": respiratory_result["probability"],
+            "risk_level": respiratory_result["risk_level"],
+            "method": "ML (Random Forest)"
+        })
+        all_probabilities["Respiratory Disease"] = respiratory_result["probability"]
     
     # Find highest risk
     if predictions:
