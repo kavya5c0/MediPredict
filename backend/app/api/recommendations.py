@@ -3,6 +3,7 @@ from app.data.medical_knowledge import MEDICAL_KNOWLEDGE_BASE, HEALTH_SCREENING_
 from app.core.database import get_db, release_db
 from app.core.security import get_current_user
 import logging
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -144,6 +145,8 @@ async def get_recommendations(
         
         # Get health profile
         health_profile = user.get("health_profile", {})
+        if isinstance(health_profile, str):
+            health_profile = json.loads(health_profile)
         age = user.get("age", 0)
         
         # Get personalized recommendations
@@ -181,10 +184,10 @@ async def update_health_profile(
     
     try:
         await conn.execute(
-            "UPDATE users SET health_profile = $1 WHERE id = $2",
-            profile_data, int(current_user)
+            "UPDATE users SET health_profile = $1::jsonb WHERE id = $2",
+            json.dumps(profile_data), int(current_user)
         )
-        
+
         return {
             "message": "Health profile updated successfully",
             "profile": profile_data

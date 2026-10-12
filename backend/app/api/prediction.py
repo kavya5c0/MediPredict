@@ -224,10 +224,13 @@ def generate_recommendations(risk_result: dict, health_data: dict) -> list:
     return recommendations
 
 @router.post("/disease")
-async def predict_disease(health_data: dict):
+async def predict_disease(
+    health_data: dict,
+    current_user: str = Depends(get_current_user)
+):
     """Predict disease using ML models trained on real medical data"""
     logger.info(f"Received health data: {health_data}")
-    
+
     conn = None
     try:
         conn = await get_db()
@@ -406,7 +409,7 @@ async def predict_disease(health_data: dict):
                 INSERT INTO predictions (user_id, health_data, predicted_disease, confidence, risk_factors, recommendations, all_probabilities)
                 VALUES ($1, $2::jsonb, $3, $4, $5, $6, $7::jsonb)
                 RETURNING id
-            """, 1, json.dumps(health_data), result["predicted_disease"], result["confidence"],
+            """, int(current_user), json.dumps(health_data), result["predicted_disease"], result["confidence"],
                 result["risk_factors"], result["recommendations"], json.dumps(result["all_probabilities"]))
             result["prediction_id"] = str(result_id["id"])
             logger.info(f"Successfully saved to database with ID: {result['prediction_id']}")

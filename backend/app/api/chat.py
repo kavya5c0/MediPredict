@@ -4,6 +4,7 @@ from app.core.database import get_db, release_db
 from app.core.security import get_current_user
 from datetime import datetime
 import logging
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -24,12 +25,13 @@ async def health_chat_query(query_data: dict):
     try:
         conn = await get_db()
         try:
-            # Convert sources to array format
+            # Convert sources to array of strings
             sources_array = result["sources"] if result["sources"] else []
+            sources_clean = [str(s) for s in sources_array]
             await conn.execute("""
                 INSERT INTO chat_history (user_id, question, answer, source_documents, timestamp)
                 VALUES ($1, $2, $3, $4, $5)
-            """, 1, question, result["answer"], sources_array, datetime.utcnow())
+            """, 1, question, result["answer"], sources_clean, datetime.utcnow())
         finally:
             await release_db(conn)
     except Exception as e:

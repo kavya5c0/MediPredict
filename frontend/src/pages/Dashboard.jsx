@@ -26,6 +26,8 @@ const Dashboard = () => {
     chatMessages: 0,
     recommendations: 0
   })
+  const [predictions, setPredictions] = useState([])
+  const [chatHistory, setChatHistory] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
@@ -48,6 +50,10 @@ const Dashboard = () => {
         chatMessages: chatRes.data.history?.length || 0,
         recommendations: recommendationsRes.data.recommendations?.length || 0
       })
+
+      // Store actual data for charts
+      setPredictions(predictionsRes.data.predictions || [])
+      setChatHistory(chatRes.data.history || [])
     } catch (error) {
       console.error('Failed to fetch dashboard data:', error)
       setError('Failed to load dashboard data. Please refresh the page.')
@@ -175,7 +181,7 @@ const Dashboard = () => {
               Disease Risk Analysis
             </h3>
           </div>
-          <DiseaseRiskChart />
+          <DiseaseRiskChart predictions={predictions} />
         </div>
 
         <div className="card">
