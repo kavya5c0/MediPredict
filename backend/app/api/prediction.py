@@ -228,11 +228,12 @@ async def predict_disease(health_data: dict):
     """Predict disease using ML models trained on real medical data"""
     logger.info(f"Received health data: {health_data}")
     
+    conn = None
     try:
         conn = await get_db()
-    except Exception:
-        # Fallback without database
-        pass
+        logger.info("Database connection established")
+    except Exception as e:
+        logger.warning(f"Database connection failed: {e}. Running without database.")
     
     # Use ML models for prediction with guaranteed fallback values
     logger.info("Calling ML models...")
@@ -337,8 +338,46 @@ async def predict_disease(health_data: dict):
     
     logger.info(f"Collected {len(predictions)} predictions")
     logger.info(f"All probabilities: {all_probabilities}")
-    
-    # Find highest risk
+
+    # Clinical severity override - prioritize life-threatening conditions
+    # Check for Stage 2 Hypertension (BP >= 140/90)
+    systolic = health_data.get('blood_pressure_systolic', 0)
+    diastolic = health_data.get('blood_pressure_diastolic', 0)
+
+    if systolic >= 140 or diastolic >= 90:
+        # Hypertension is critical - boost its priority
+        for pred in predictions:
+            if pred["disease"] == "Hypertension":
+                # Very high BP (160/100 or higher) gets highest priority
+                if systolic >= 160 or diastolic >= 100:
+                    pred["probability"] = max(pred["probability"], 0.90)
+                else:
+                    pred["probability"] = max(pred["probability"], 0.85)
+                pred["risk_level"] = "High"
+                all_probabilities["Hypertension"] = pred["probability"]
+                logger.info(f"Critical hypertension detected (BP: {systolic}/{diastolic}) - prioritizing to {pred['probability']}")
+
+    # Check for glucose levels
+    glucose = health_data.get('glucose_level', 0)
+    if glucose >= 200:
+        # Diabetic emergency range - prioritize diabetes
+        for pred in predictions:
+            if pred["disease"] == "Type 2 Diabetes":
+                pred["probability"] = max(pred["probability"], 0.95)
+                pred["risk_level"] = "High"
+                all_probabilities["Type 2 Diabetes"] = pred["probability"]
+                logger.info(f"Critical glucose level detected ({glucose} mg/dL) - prioritizing diabetes")
+    elif glucose >= 126 and glucose < 200:
+        # Diabetic range but not emergency - moderate boost, but not higher than severe hypertension
+        for pred in predictions:
+            if pred["disease"] == "Type 2 Diabetes":
+                pred["probability"] = max(pred["probability"], 0.70)
+                if pred["probability"] >= 0.70:
+                    pred["risk_level"] = "High"
+                all_probabilities["Type 2 Diabetes"] = pred["probability"]
+                logger.info(f"Elevated glucose detected ({glucose} mg/dL) - moderate diabetes risk at {pred['probability']}")
+
+    # Find highest risk after clinical overrides
     predictions.sort(key=lambda x: x["probability"], reverse=True)
     highest_risk = predictions[0]
     
@@ -359,21 +398,27 @@ async def predict_disease(health_data: dict):
     logger.info(f"Final result: {result['predicted_disease']}")
     
     # Save to database if available
-    try:
-        result_id = await conn.fetchrow("""
-            INSERT INTO predictions (user_id, health_data, predicted_disease, confidence, risk_factors, recommendations, all_probabilities)
-            VALUES ($1, $2, $3, $4, $5, $6, $7)
-            RETURNING id
-        """, 1, health_data, result["predicted_disease"], result["confidence"], 
-            result["risk_factors"], result["recommendations"], result["all_probabilities"])
-        result["prediction_id"] = str(result_id["id"])
-    except:
-        pass
-    finally:
+    if conn:
         try:
-            await release_db(conn)
-        except:
-            pass
+            import json
+            logger.info(f"Attempting to save to database - all_probabilities: {result['all_probabilities']}")
+            result_id = await conn.fetchrow("""
+                INSERT INTO predictions (user_id, health_data, predicted_disease, confidence, risk_factors, recommendations, all_probabilities)
+                VALUES ($1, $2::jsonb, $3, $4, $5, $6, $7::jsonb)
+                RETURNING id
+            """, 1, json.dumps(health_data), result["predicted_disease"], result["confidence"],
+                result["risk_factors"], result["recommendations"], json.dumps(result["all_probabilities"]))
+            result["prediction_id"] = str(result_id["id"])
+            logger.info(f"Successfully saved to database with ID: {result['prediction_id']}")
+        except Exception as e:
+            logger.error(f"Failed to save to database: {e}", exc_info=True)
+        finally:
+            try:
+                await release_db(conn)
+            except Exception as e:
+                logger.error(f"Failed to release database connection: {e}")
+    else:
+        logger.warning("Skipping database save - no connection available")
     
     return result
 

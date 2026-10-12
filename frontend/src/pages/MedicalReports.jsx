@@ -131,9 +131,10 @@ const MedicalReports = () => {
 
     try {
       await api.delete(`/medical/reports/${reportId}`)
-      setReports(reports.filter(report => report._id !== reportId))
+      setReports(reports.filter(report => (report._id || report.id) !== reportId))
       toast.success('Report deleted successfully')
     } catch (error) {
+      console.error('Delete error:', error)
       handleApiError(error, setError, { showMessage: true })
     }
   }
@@ -274,30 +275,42 @@ const MedicalReports = () => {
           <div className="space-y-4">
             <div>
               <h3 className="font-medium text-gray-700 mb-2">Summary</h3>
-              <p className="text-gray-600">{analysisResult.summary}</p>
+              <p className="text-gray-600">{analysisResult.clinical_significance || analysisResult.summary || 'No summary available'}</p>
             </div>
-            
-            {analysisResult.medical_entities && (
+
+            {analysisResult.key_findings?.length > 0 && (
               <div>
-                <h3 className="font-medium text-gray-700 mb-2">Detected Information</h3>
-                <div className="grid grid-cols-2 gap-4">
-                  {analysisResult.medical_entities.diseases?.length > 0 && (
-                    <div>
-                      <p className="text-sm font-medium text-red-600">Conditions:</p>
-                      <p className="text-sm text-gray-600">
-                        {analysisResult.medical_entities.diseases.join(', ')}
-                      </p>
+                <h3 className="font-medium text-gray-700 mb-2">Key Findings</h3>
+                <ul className="list-disc list-inside space-y-1">
+                  {analysisResult.key_findings.map((finding, idx) => (
+                    <li key={idx} className="text-sm text-gray-600">{finding}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {analysisResult.lab_values && Object.keys(analysisResult.lab_values).length > 0 && (
+              <div>
+                <h3 className="font-medium text-gray-700 mb-2">Lab Values</h3>
+                <div className="grid grid-cols-2 gap-2">
+                  {Object.entries(analysisResult.lab_values).map(([key, value]) => (
+                    <div key={key} className="text-sm">
+                      <span className="font-medium text-gray-700">{key}:</span>{' '}
+                      <span className="text-gray-600">{value}</span>
                     </div>
-                  )}
-                  {analysisResult.medical_entities.medications?.length > 0 && (
-                    <div>
-                      <p className="text-sm font-medium text-blue-600">Medications:</p>
-                      <p className="text-sm text-gray-600">
-                        {analysisResult.medical_entities.medications.join(', ')}
-                      </p>
-                    </div>
-                  )}
+                  ))}
                 </div>
+              </div>
+            )}
+
+            {analysisResult.potential_conditions?.length > 0 && (
+              <div>
+                <h3 className="font-medium text-gray-700 mb-2">Potential Conditions</h3>
+                <ul className="list-disc list-inside space-y-1">
+                  {analysisResult.potential_conditions.map((condition, idx) => (
+                    <li key={idx} className="text-sm text-gray-600">{condition}</li>
+                  ))}
+                </ul>
               </div>
             )}
 
@@ -328,7 +341,7 @@ const MedicalReports = () => {
           <div className="space-y-3">
             {reports.map((report) => (
               <div
-                key={report._id}
+                key={report._id || report.id}
                 className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
               >
                 <div className="flex items-center space-x-4">
@@ -336,7 +349,7 @@ const MedicalReports = () => {
                     <FileText className="h-5 w-5 text-primary-600" />
                   </div>
                   <div>
-                    <p className="font-medium text-gray-900">{report.filename}</p>
+                    <p className="font-medium text-gray-900">{report.filename || 'Medical Report'}</p>
                     <p className="text-sm text-gray-600">
                       {new Date(report.uploaded_at || report.analyzed_at).toLocaleDateString()}
                     </p>
@@ -345,7 +358,7 @@ const MedicalReports = () => {
                 <div className="flex items-center space-x-2">
                   <Calendar className="h-5 w-5 text-gray-400" />
                   <button
-                    onClick={() => handleDeleteReport(report._id)}
+                    onClick={() => handleDeleteReport(report._id || report.id)}
                     className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                     title="Delete report"
                   >

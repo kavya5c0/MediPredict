@@ -259,7 +259,7 @@ def analyze_medical_text(text: str) -> dict:
     
     # Blood glucose patterns
     glucose_match = re.search(r'glucose[:\s]*(\d+)\s*mg/dL', text_lower)
-    if glucose_match:
+    if glucose_match and glucose_match.group(1):
         glucose_value = int(glucose_match.group(1))
         analysis["lab_values"]["glucose"] = f"{glucose_value} mg/dL"
         if glucose_value >= 126:
@@ -271,7 +271,7 @@ def analyze_medical_text(text: str) -> dict:
     
     # A1c patterns
     a1c_match = re.search(r'a1c|hba1c|hemoglobin a1c[:\s]*([\d.]+)%', text_lower)
-    if a1c_match:
+    if a1c_match and a1c_match.group(1):
         a1c_value = float(a1c_match.group(1))
         analysis["lab_values"]["a1c"] = f"{a1c_value}%"
         if a1c_value >= 6.5:
@@ -283,11 +283,11 @@ def analyze_medical_text(text: str) -> dict:
     
     # Blood pressure patterns
     bp_match = re.search(r'blood pressure|bp[:\s]*(\d+)/(\d+)\s*mmhg', text_lower)
-    if bp_match:
+    if bp_match and bp_match.group(1) and bp_match.group(2):
         systolic = int(bp_match.group(1))
         diastolic = int(bp_match.group(2))
         analysis["lab_values"]["blood_pressure"] = f"{systolic}/{diastolic} mmHg"
-        
+
         if systolic >= 140 or diastolic >= 90:
             analysis["potential_conditions"].append("Stage 2 Hypertension (ICD-10: I10)")
             analysis["key_findings"].append(f"Stage 2 hypertension ({systolic}/{diastolic} mmHg)")
@@ -300,7 +300,7 @@ def analyze_medical_text(text: str) -> dict:
     
     # Cholesterol patterns
     cholesterol_match = re.search(r'cholesterol[:\s]*(\d+)\s*mg/dL', text_lower)
-    if cholesterol_match:
+    if cholesterol_match and cholesterol_match.group(1):
         cholesterol_value = int(cholesterol_match.group(1))
         analysis["lab_values"]["cholesterol"] = f"{cholesterol_value} mg/dL"
         if cholesterol_value >= 240:
@@ -311,7 +311,7 @@ def analyze_medical_text(text: str) -> dict:
     
     # BMI patterns
     bmi_match = re.search(r'bmi[:\s]*([\d.]+)', text_lower)
-    if bmi_match:
+    if bmi_match and bmi_match.group(1):
         bmi_value = float(bmi_match.group(1))
         analysis["lab_values"]["bmi"] = f"{bmi_value}"
         if bmi_value >= 30:

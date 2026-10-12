@@ -130,7 +130,7 @@ async def startup_event():
             await conn.execute("""
                 CREATE TABLE IF NOT EXISTS predictions (
                     id SERIAL PRIMARY KEY,
-                    user_id INTEGER REFERENCES users(id),
+                    user_id INTEGER,
                     health_data JSONB,
                     predicted_disease VARCHAR(255),
                     confidence FLOAT,
@@ -140,6 +140,22 @@ async def startup_event():
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             """)
+
+            # Add all_probabilities column if it doesn't exist (for existing tables)
+            try:
+                await conn.execute("""
+                    ALTER TABLE predictions ADD COLUMN IF NOT EXISTS all_probabilities JSONB
+                """)
+            except Exception as e:
+                logger.warning(f"Could not add all_probabilities column: {e}")
+
+            # Remove foreign key constraint from user_id to allow any user_id
+            try:
+                await conn.execute("""
+                    ALTER TABLE predictions DROP CONSTRAINT IF EXISTS predictions_user_id_fkey
+                """)
+            except Exception as e:
+                logger.warning(f"Could not drop foreign key constraint: {e}")
             
             await conn.execute("""
                 CREATE TABLE IF NOT EXISTS chat_history (
