@@ -226,146 +226,137 @@ def generate_recommendations(risk_result: dict, health_data: dict) -> list:
 @router.post("/disease")
 async def predict_disease(health_data: dict):
     """Predict disease using ML models trained on real medical data"""
+    logger.info(f"Received health data: {health_data}")
+    
     try:
         conn = await get_db()
     except Exception:
         # Fallback without database
         pass
     
-    # Use ML models for prediction
+    # Use ML models for prediction with guaranteed fallback values
+    logger.info("Calling ML models...")
     diabetes_result = ml_models.predict_diabetes(health_data)
-    heart_result = ml_models.predict_heart_disease(health_data)
-    hypertension_result = ml_models.predict_hypertension(health_data)
-    stroke_result = ml_models.predict_stroke(health_data)
-    kidney_result = ml_models.predict_kidney_disease(health_data)
-    liver_result = ml_models.predict_liver_disease(health_data)
-    respiratory_result = ml_models.predict_respiratory_disease(health_data)
+    logger.info(f"Diabetes result: {diabetes_result}")
     
-    # Force predictions even if some fail
-    if not diabetes_result:
-        diabetes_result = {"prediction": 0, "probability": 0.5, "risk_level": "Low"}
-    if not heart_result:
-        heart_result = {"prediction": 0, "probability": 0.5, "risk_level": "Low"}
-    if not hypertension_result:
-        hypertension_result = {"prediction": 0, "probability": 0.5, "risk_level": "Low"}
-    if not stroke_result:
-        stroke_result = {"prediction": 0, "probability": 0.5, "risk_level": "Low"}
-    if not kidney_result:
-        kidney_result = {"prediction": 0, "probability": 0.5, "risk_level": "Low"}
-    if not liver_result:
-        liver_result = {"prediction": 0, "probability": 0.5, "risk_level": "Low"}
-    if not respiratory_result:
-        respiratory_result = {"prediction": 0, "probability": 0.5, "risk_level": "Low"}
+    heart_result = ml_models.predict_heart_disease(health_data)
+    logger.info(f"Heart result: {heart_result}")
+    
+    hypertension_result = ml_models.predict_hypertension(health_data)
+    logger.info(f"Hypertension result: {hypertension_result}")
+    
+    stroke_result = ml_models.predict_stroke(health_data)
+    logger.info(f"Stroke result: {stroke_result}")
+    
+    kidney_result = ml_models.predict_kidney_disease(health_data)
+    logger.info(f"Kidney result: {kidney_result}")
+    
+    liver_result = ml_models.predict_liver_disease(health_data)
+    logger.info(f"Liver result: {liver_result}")
+    
+    respiratory_result = ml_models.predict_respiratory_disease(health_data)
+    logger.info(f"Respiratory result: {respiratory_result}")
+    
+    # Ensure all results have values (fallback if ML fails)
+    diabetes_result = diabetes_result or {"prediction": 0, "probability": 0.5, "risk_level": "Low"}
+    heart_result = heart_result or {"prediction": 0, "probability": 0.5, "risk_level": "Low"}
+    hypertension_result = hypertension_result or {"prediction": 0, "probability": 0.5, "risk_level": "Low"}
+    stroke_result = stroke_result or {"prediction": 0, "probability": 0.5, "risk_level": "Low"}
+    kidney_result = kidney_result or {"prediction": 0, "probability": 0.5, "risk_level": "Low"}
+    liver_result = liver_result or {"prediction": 0, "probability": 0.5, "risk_level": "Low"}
+    respiratory_result = respiratory_result or {"prediction": 0, "probability": 0.5, "risk_level": "Low"}
+    
+    logger.info(f"After fallback - All results have values")
     
     # Collect results
     predictions = []
     all_probabilities = {}
     
-    if diabetes_result:
-        predictions.append({
-            "disease": "Type 2 Diabetes",
-            "prediction": diabetes_result["prediction"],
-            "probability": diabetes_result["probability"],
-            "risk_level": diabetes_result["risk_level"],
-            "method": "ML (Random Forest)"
-        })
-        all_probabilities["Type 2 Diabetes"] = diabetes_result["probability"]
+    predictions.append({
+        "disease": "Type 2 Diabetes",
+        "prediction": diabetes_result["prediction"],
+        "probability": diabetes_result["probability"],
+        "risk_level": diabetes_result["risk_level"],
+        "method": "ML (Random Forest)"
+    })
+    all_probabilities["Type 2 Diabetes"] = diabetes_result["probability"]
     
-    if heart_result:
-        predictions.append({
-            "disease": "Heart Disease",
-            "prediction": heart_result["prediction"],
-            "probability": heart_result["probability"],
-            "risk_level": heart_result["risk_level"],
-            "method": "ML (Random Forest)"
-        })
-        all_probabilities["Heart Disease"] = heart_result["probability"]
+    predictions.append({
+        "disease": "Heart Disease",
+        "prediction": heart_result["prediction"],
+        "probability": heart_result["probability"],
+        "risk_level": heart_result["risk_level"],
+        "method": "ML (Random Forest)"
+    })
+    all_probabilities["Heart Disease"] = heart_result["probability"]
     
-    if hypertension_result:
-        predictions.append({
-            "disease": "Hypertension",
-            "prediction": hypertension_result["prediction"],
-            "probability": hypertension_result["probability"],
-            "risk_level": hypertension_result["risk_level"],
-            "method": "ML (Logistic Regression)"
-        })
-        all_probabilities["Hypertension"] = hypertension_result["probability"]
+    predictions.append({
+        "disease": "Hypertension",
+        "prediction": hypertension_result["prediction"],
+        "probability": hypertension_result["probability"],
+        "risk_level": hypertension_result["risk_level"],
+        "method": "ML (Logistic Regression)"
+    })
+    all_probabilities["Hypertension"] = hypertension_result["probability"]
     
-    if stroke_result:
-        predictions.append({
-            "disease": "Stroke",
-            "prediction": stroke_result["prediction"],
-            "probability": stroke_result["probability"],
-            "risk_level": stroke_result["risk_level"],
-            "method": "ML (Random Forest)"
-        })
-        all_probabilities["Stroke"] = stroke_result["probability"]
+    predictions.append({
+        "disease": "Stroke",
+        "prediction": stroke_result["prediction"],
+        "probability": stroke_result["probability"],
+        "risk_level": stroke_result["risk_level"],
+        "method": "ML (Random Forest)"
+    })
+    all_probabilities["Stroke"] = stroke_result["probability"]
     
-    if kidney_result:
-        predictions.append({
-            "disease": "Kidney Disease",
-            "prediction": kidney_result["prediction"],
-            "probability": kidney_result["probability"],
-            "risk_level": kidney_result["risk_level"],
-            "method": "ML (Random Forest)"
-        })
-        all_probabilities["Kidney Disease"] = kidney_result["probability"]
+    predictions.append({
+        "disease": "Kidney Disease",
+        "prediction": kidney_result["prediction"],
+        "probability": kidney_result["probability"],
+        "risk_level": kidney_result["risk_level"],
+        "method": "ML (Random Forest)"
+    })
+    all_probabilities["Kidney Disease"] = kidney_result["probability"]
     
-    if liver_result:
-        predictions.append({
-            "disease": "Liver Disease",
-            "prediction": liver_result["prediction"],
-            "probability": liver_result["probability"],
-            "risk_level": liver_result["risk_level"],
-            "method": "ML (Random Forest)"
-        })
-        all_probabilities["Liver Disease"] = liver_result["probability"]
+    predictions.append({
+        "disease": "Liver Disease",
+        "prediction": liver_result["prediction"],
+        "probability": liver_result["probability"],
+        "risk_level": liver_result["risk_level"],
+        "method": "ML (Random Forest)"
+    })
+    all_probabilities["Liver Disease"] = liver_result["probability"]
     
-    if respiratory_result:
-        predictions.append({
-            "disease": "Respiratory Disease",
-            "prediction": respiratory_result["prediction"],
-            "probability": respiratory_result["probability"],
-            "risk_level": respiratory_result["risk_level"],
-            "method": "ML (Random Forest)"
-        })
-        all_probabilities["Respiratory Disease"] = respiratory_result["probability"]
+    predictions.append({
+        "disease": "Respiratory Disease",
+        "prediction": respiratory_result["prediction"],
+        "probability": respiratory_result["probability"],
+        "risk_level": respiratory_result["risk_level"],
+        "method": "ML (Random Forest)"
+    })
+    all_probabilities["Respiratory Disease"] = respiratory_result["probability"]
+    
+    logger.info(f"Collected {len(predictions)} predictions")
+    logger.info(f"All probabilities: {all_probabilities}")
     
     # Find highest risk
-    if predictions:
-        predictions.sort(key=lambda x: x["probability"], reverse=True)
-        highest_risk = predictions[0]
-    else:
-        # Fallback to rule-based if ML models not available
-        diabetes_risk = calculate_diabetes_risk(health_data)
-        cardio_risk = calculate_cardiovascular_risk(health_data)
-        
-        risks = [
-            (diabetes_risk["risk_score"], diabetes_risk),
-            (cardio_risk["risk_score"], cardio_risk)
-        ]
-        risks.sort(key=lambda x: x[0], reverse=True)
-        highest_risk = risks[0][1]
-        
-        all_probabilities = {
-            "Type 2 Diabetes": 0.5,
-            "Cardiovascular Disease": 0.5,
-            "Hypertension": 0.3
-        }
+    predictions.sort(key=lambda x: x["probability"], reverse=True)
+    highest_risk = predictions[0]
     
     # Generate recommendations based on ML predictions
     recommendations = generate_ml_recommendations(predictions, health_data)
     
     result = {
-        "predicted_disease": highest_risk.get("disease", "Unknown") if predictions else highest_risk["predicted_disease"],
-        "confidence": highest_risk.get("probability", 0.7) if predictions else highest_risk["confidence"],
-        "risk_level": highest_risk.get("risk_level", "Medium") if predictions else "Medium",
-        "method": "Machine Learning" if predictions else "Rule-Based",
+        "predicted_disease": highest_risk["disease"],
+        "confidence": highest_risk["probability"],
+        "risk_level": highest_risk["risk_level"],
+        "method": "Machine Learning",
         "risk_factors": extract_risk_factors(health_data),
         "recommendations": [rec["action"] for rec in recommendations],
         "all_probabilities": all_probabilities,
         "model_details": predictions
     }
+    
+    logger.info(f"Final result: {result['predicted_disease']}")
     
     # Save to database if available
     try:

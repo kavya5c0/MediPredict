@@ -100,6 +100,7 @@ class MLModelLoader:
     def predict_diabetes(self, features):
         """Predict diabetes risk using ML model"""
         if not self.diabetes_model:
+            logger.warning("Diabetes model not loaded")
             return None
         
         try:
@@ -115,6 +116,8 @@ class MLModelLoader:
                 'Age': int(features.get('age', 30))
             }
             
+            logger.info(f"Diabetes features: {feature_dict}")
+            
             # Order features correctly
             feature_array = np.array([feature_dict[feat] for feat in self.diabetes_features]).reshape(1, -1)
             
@@ -125,13 +128,15 @@ class MLModelLoader:
             prediction = self.diabetes_model.predict(feature_scaled)[0]
             probability = self.diabetes_model.predict_proba(feature_scaled)[0][1]
             
+            logger.info(f"Diabetes prediction: {prediction}, probability: {probability}")
+            
             return {
                 'prediction': int(prediction),
                 'probability': float(probability),
                 'risk_level': 'High' if probability > 0.7 else 'Medium' if probability > 0.4 else 'Low'
             }
         except Exception as e:
-            logger.error(f"Error predicting diabetes: {e}")
+            logger.error(f"Error predicting diabetes: {e}", exc_info=True)
             return None
     
     def predict_heart_disease(self, features):
